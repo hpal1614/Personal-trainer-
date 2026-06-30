@@ -6,6 +6,20 @@ This is not a generic template. It's structured the way a qualified coach would 
 
 ---
 
+## ▶️ Use the interactive app
+
+Don't want to do the math by hand? The repo ships a **runnable web app** that asks you the same questions a coach would and generates your personalized plan — calories, macros, a training split matched to your schedule and equipment, cardio, and supplements — all computed live from your inputs.
+
+```bash
+cd app
+python3 -m http.server 8000   # then open http://localhost:8000
+# or just open app/index.html directly in your browser
+```
+
+The coaching **logic** lives in [`app/js/coach.js`](app/js/coach.js) — pure, documented functions (Mifflin-St Jeor energy, protein-first macros, frequency-based split selection) that mirror the markdown docs below, so the app and the written plan never disagree.
+
+---
+
 ## 📂 What's in here
 
 | File | What it covers |

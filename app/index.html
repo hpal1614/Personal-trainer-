@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Bodybuilding Coach</title>
+    <meta
+      name="description"
+      content="A professional bodybuilding coach in your browser — answer a few questions and get a personalized fat-loss / muscle plan."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏋️</text></svg>"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">🏋️ <span>AI Bodybuilding Coach</span></div>
+      <div class="tagline">Evidence-based plans. Built from your numbers.</div>
+    </header>
+
+    <main class="container">
+      <!-- ===================== INTAKE FORM ===================== -->
+      <section id="intake" class="card">
+        <h1>Let's build your plan</h1>
+        <p class="subtitle">
+          Answer these the way you'd answer a real coach. The app runs the same
+          logic a coach uses — Mifflin-St Jeor energy, a protein-first macro
+          split, and a training split matched to your schedule.
+        </p>
+
+        <form id="coachForm" novalidate>
+          <!-- Goal -->
+          <fieldset>
+            <legend>1 · What's your main goal?</legend>
+            <div class="chips" data-field="goal">
+              <label><input type="radio" name="goal" value="cut" checked /><span>Lose fat</span></label>
+              <label><input type="radio" name="goal" value="recomp" /><span>Recomp (lean out + build)</span></label>
+              <label><input type="radio" name="goal" value="gain" /><span>Build muscle</span></label>
+            </div>
+          </fieldset>
+
+          <!-- Body stats -->
+          <fieldset>
+            <legend>2 · Your stats</legend>
+            <div class="grid">
+              <label class="field">
+                <span>Sex</span>
+                <select name="sex">
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Age</span>
+                <input type="number" name="age" min="14" max="90" placeholder="30" required />
+              </label>
+              <label class="field">
+                <span>Units</span>
+                <select name="units" id="units">
+                  <option value="metric">Metric (kg/cm)</option>
+                  <option value="imperial">Imperial (lb/in)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Weight <em id="wUnit">(kg)</em></span>
+                <input type="number" name="weight" step="0.1" min="30" placeholder="90" required />
+              </label>
+              <label class="field metric-only">
+                <span>Height (cm)</span>
+                <input type="number" name="heightCm" min="120" max="230" placeholder="180" />
+              </label>
+              <label class="field imperial-only" hidden>
+                <span>Height (inches)</span>
+                <input type="number" name="heightIn" min="48" max="90" placeholder="71" />
+              </label>
+              <label class="field">
+                <span>Body fat % <em>(optional)</em></span>
+                <input type="number" name="bodyFat" min="3" max="60" placeholder="e.g. 18" />
+              </label>
+            </div>
+          </fieldset>
+
+          <!-- Experience -->
+          <fieldset>
+            <legend>3 · Training experience</legend>
+            <div class="chips" data-field="experience">
+              <label><input type="radio" name="experience" value="beginner" /><span>Beginner (&lt;1 yr)</span></label>
+              <label><input type="radio" name="experience" value="intermediate" /><span>Intermediate (1–3 yrs)</span></label>
+              <label><input type="radio" name="experience" value="advanced" checked /><span>Advanced (3+ yrs)</span></label>
+            </div>
+          </fieldset>
+
+          <!-- Equipment -->
+          <fieldset>
+            <legend>4 · Equipment access</legend>
+            <div class="chips" data-field="equipment">
+              <label><input type="radio" name="equipment" value="full" checked /><span>Full gym</span></label>
+              <label><input type="radio" name="equipment" value="home" /><span>Home (DBs/barbell)</span></label>
+              <label><input type="radio" name="equipment" value="min" /><span>Minimal/bodyweight</span></label>
+            </div>
+          </fieldset>
+
+          <!-- Days -->
+          <fieldset>
+            <legend>5 · Days per week you can train</legend>
+            <div class="chips" data-field="days">
+              <label><input type="radio" name="days" value="3" /><span>3</span></label>
+              <label><input type="radio" name="days" value="4" /><span>4</span></label>
+              <label><input type="radio" name="days" value="5" /><span>5</span></label>
+              <label><input type="radio" name="days" value="6" checked /><span>6</span></label>
+            </div>
+          </fieldset>
+
+          <!-- Activity + diet -->
+          <fieldset>
+            <legend>6 · Lifestyle & diet</legend>
+            <div class="grid">
+              <label class="field">
+                <span>Daily activity (outside training)</span>
+                <select name="activity">
+                  <option value="sedentary">Sedentary (desk job)</option>
+                  <option value="light" selected>Lightly active</option>
+                  <option value="moderate">Moderately active</option>
+                  <option value="high">Very active / physical job</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Diet preference</span>
+                <select name="diet">
+                  <option value="none">No restrictions</option>
+                  <option value="vegetarian">Vegetarian</option>
+                  <option value="vegan">Vegan</option>
+                  <option value="halal">Halal / other</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <button type="submit" class="btn-primary">Build my plan →</button>
+          <p id="formError" class="error" hidden></p>
+        </form>
+      </section>
+
+      <!-- ===================== PLAN OUTPUT ===================== -->
+      <section id="plan" class="plan" hidden></section>
+    </main>
+
+    <footer class="foot">
+      Educational, evidence-based programming — not medical advice. Clear it with
+      a doctor before starting if you have any medical condition.
+    </footer>
+
+    <script src="js/coach.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
