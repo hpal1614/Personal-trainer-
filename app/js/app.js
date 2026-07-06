@@ -1,9 +1,9 @@
 /*
- * app.js — UI layer
- * -----------------
- * Reads the intake form, hands the answers to Coach.buildPlan() (the logic),
- * and renders the personalized plan. No coaching math lives here — that's all
- * in coach.js. This file is purely about collecting input and drawing output.
+ * app.js — UI layer (Strava-style, tabbed dashboard)
+ * --------------------------------------------------
+ * Reads the intake form, calls Coach.buildPlan() (the logic in coach.js), and
+ * renders a sectioned, app-like plan: Overview · Nutrition · Training · Track.
+ * The Track tab hosts the Fitbit connection (fitbit.js). No coaching math here.
  */
 
 (function () {
@@ -14,8 +14,12 @@
   const planEl = $('#plan');
   const intakeEl = $('#intake');
   const errorEl = $('#formError');
+  const LS_INPUT = 'lastPlanInput';
 
-  /* ---- Unit toggle: show metric or imperial height + weight label ---- */
+  const esc = (s) =>
+    String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  /* ------------------------- Units toggle ------------------------- */
   const unitsSel = $('#units');
   function applyUnits() {
     const imperial = unitsSel.value === 'imperial';
@@ -26,15 +30,28 @@
   unitsSel.addEventListener('change', applyUnits);
   applyUnits();
 
-  /* ---- Collect form values into a plain object ---- */
+  /* --------------------------- Form I/O --------------------------- */
   function readForm() {
     const data = Object.fromEntries(new FormData(form).entries());
-    // FormData omits empty optional fields; normalize bodyFat.
     if (!data.bodyFat) data.bodyFat = '';
     return data;
   }
 
-  /* ---- Validation ---- */
+  function prefillForm(d) {
+    if (!d) return;
+    Object.entries(d).forEach(([k, v]) => {
+      const el = form.elements[k];
+      if (!el) return;
+      if (el instanceof RadioNodeList || (el.length && el[0] && el[0].type === 'radio')) {
+        const radio = form.querySelector(`input[name="${k}"][value="${v}"]`);
+        if (radio) radio.checked = true;
+      } else {
+        el.value = v;
+      }
+    });
+    applyUnits();
+  }
+
   function validate(d) {
     if (!d.age || Number(d.age) < 14) return 'Please enter a valid age.';
     if (!d.weight || Number(d.weight) <= 0) return 'Please enter your weight.';
@@ -43,24 +60,32 @@
     return null;
   }
 
-  /* ---- Small render helpers ---- */
-  const esc = (s) =>
-    String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  /* ---------------------- Panel builders -------------------------- */
 
-  function statBlock(plan) {
+  function overviewPanel(plan) {
     const e = plan.energy;
-    const dirWord =
+    const dir =
       plan.phase.direction === 'deficit' ? `−${e.adjustPct}% deficit` :
       plan.phase.direction === 'surplus' ? `+${e.adjustPct}% surplus` : 'maintenance';
+    const c = plan.cardio;
     return `
-      <div class="stat-grid">
-        <div class="stat"><div class="num">${e.bmr}</div><div class="lbl">BMR (kcal)</div></div>
-        <div class="stat"><div class="num">${e.maintenance}</div><div class="lbl">Maintenance (kcal)</div></div>
-        <div class="stat accent"><div class="num">${e.target}</div><div class="lbl">Daily target · ${dirWord}</div></div>
+      <div class="section-title">Daily energy</div>
+      <div class="stat-row">
+        <div class="stat"><div class="num">${e.bmr}</div><div class="lbl">BMR</div></div>
+        <div class="stat"><div class="num">${e.maintenance}</div><div class="lbl">Maintenance</div></div>
+        <div class="stat hero-stat"><div class="num">${e.target}</div><div class="lbl">Target · ${dir}</div></div>
+      </div>
+      <div class="info-card">
+        <h3>🏃 Cardio & Activity</h3>
+        <ul class="clean">
+          <li><b>Steps</b><div style="color:var(--muted);margin-top:2px">${esc(c.steps)}</div></li>
+          <li><b>Sessions</b><div style="color:var(--muted);margin-top:2px">${esc(c.sessions)}</div></li>
+        </ul>
+        <div class="callout" style="margin-top:12px">${esc(c.note)}</div>
       </div>`;
   }
 
-  function macroSection(plan) {
+  function nutritionPanel(plan) {
     const m = plan.macros;
     const b = m.breakdown;
     const total = b.proteinKcal + b.fatKcal + b.carbsKcal || 1;
@@ -68,125 +93,131 @@
     const cPct = (b.carbsKcal / total) * 100;
     const fPct = (b.fatKcal / total) * 100;
     return `
-      <h3>🍽️ Daily Macros</h3>
-      <div class="stat-grid">
+      <div class="section-title">Hit these every day</div>
+      <div class="stat-row">
+        <div class="stat hero-stat"><div class="num">${plan.energy.target}</div><div class="lbl">Calories</div></div>
         <div class="stat"><div class="num">${m.protein}<small>g</small></div><div class="lbl">Protein</div></div>
         <div class="stat"><div class="num">${m.carbs}<small>g</small></div><div class="lbl">Carbs</div></div>
         <div class="stat"><div class="num">${m.fat}<small>g</small></div><div class="lbl">Fat</div></div>
-        <div class="stat"><div class="num">${m.fiber}<small>g</small></div><div class="lbl">Fiber (min)</div></div>
       </div>
-      <div class="macro-bar">
-        <i class="p" style="width:${pPct}%"></i>
-        <i class="c" style="width:${cPct}%"></i>
-        <i class="f" style="width:${fPct}%"></i>
-      </div>
-      <div class="macro-legend">
-        <span><i class="dot" style="background:#ff5c39"></i><b>${Math.round(pPct)}%</b> protein</span>
-        <span><i class="dot" style="background:#ffb03a"></i><b>${Math.round(cPct)}%</b> carbs</span>
-        <span><i class="dot" style="background:#4ade80"></i><b>${Math.round(fPct)}%</b> fat</span>
-        <span>💧 <b>${m.waterL} L</b> water/day</span>
-      </div>
-      <div class="callout">
-        Protein is set first (muscle-protective), then fat for hormones, then carbs
-        fuel training. Spread protein over 4–5 meals (~40–50 g each).
+      <div class="info-card">
+        <div class="macro-bar">
+          <i class="p" style="width:${pPct}%"></i><i class="c" style="width:${cPct}%"></i><i class="f" style="width:${fPct}%"></i>
+        </div>
+        <div class="macro-legend" style="margin-top:12px">
+          <span><i class="dot" style="background:var(--orange)"></i><b>${Math.round(pPct)}%</b> protein</span>
+          <span><i class="dot" style="background:#f7b500"></i><b>${Math.round(cPct)}%</b> carbs</span>
+          <span><i class="dot" style="background:var(--good)"></i><b>${Math.round(fPct)}%</b> fat</span>
+          <span>🌾 <b>${m.fiber} g</b> fiber</span>
+          <span>💧 <b>${m.waterL} L</b> water</span>
+        </div>
+        <div class="callout" style="margin-top:14px">
+          Protein is set first (protects muscle), then fat for hormones, then carbs
+          fuel training. Spread protein over <b>4–5 meals</b> (~40–50 g each).
+        </div>
       </div>`;
   }
 
-  function sessionTable(work) {
-    const rows = work
+  function trainingPanel(plan) {
+    const t = plan.training;
+    const cards = t.days
       .map(
-        (w) => `
-        <tr>
-          <td><span class="ex">${esc(w.exercise)}</span>${w.note ? `<div class="note">${esc(w.note)}</div>` : ''}</td>
-          <td>${esc(w.sets)}</td>
-          <td>${esc(w.reps)}</td>
-          <td>${esc(w.rir)}</td>
-        </tr>`
+        (d) => `
+        <div class="day-card">
+          <h4>💪 ${esc(d.title)}</h4>
+          <div class="exs">
+            ${d.work
+              .map(
+                (w) => `
+              <div class="ex-row">
+                <div>
+                  <div class="ex-name">${esc(w.exercise)}</div>
+                  ${w.note ? `<div class="ex-note">${esc(w.note)}</div>` : ''}
+                </div>
+                <div class="ex-prescription">${esc(w.sets)} × ${esc(w.reps)}<small>${esc(w.rir)} RIR</small></div>
+              </div>`
+              )
+              .join('')}
+          </div>
+        </div>`
       )
       .join('');
-    return `<table><thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>RIR</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return `
+      <div class="section-title">${esc(t.name)} · ${esc(t.frequency)}</div>
+      <div class="callout">${t.rolling ? esc(t.rolling) : 'Leave 1–2 reps in reserve on compounds; take isolation closer to failure. Control the eccentric, full range of motion.'}</div>
+      ${cards}
+      <div class="callout"><b>Progressive overload:</b> each session add a rep. Hit the top of the range on all sets → add weight, drop to the bottom. Deload every 5–6 weeks.</div>`;
   }
 
-  function trainingSection(plan) {
-    const t = plan.training;
-    const days = t.days
-      .map((d) => `<div class="day-block"><h4>${esc(d.title)}</h4>${sessionTable(d.work)}</div>`)
+  function trackPanel(plan) {
+    const supps = plan.supplements
+      .map((s) => `<li><b>${esc(s.name)}</b> <span style="float:right">${esc(s.dose)}</span><div style="color:var(--muted);font-size:0.82rem;clear:both">${esc(s.why)}</div></li>`)
       .join('');
     return `
-      <h3>🏋️ Training — ${esc(t.name)}</h3>
-      <div class="callout"><b>${esc(t.frequency)}.</b> ${t.rolling ? esc(t.rolling) : 'Train hard but leave 1–2 reps in reserve on compounds; take isolation closer to failure. Control the eccentric, full range of motion.'}</div>
-      ${days}
-      <div class="callout"><b>Progressive overload:</b> each session try to add a rep. When you hit the top of the rep range on all sets, add weight and drop back to the bottom. Deload every 5–6 weeks.</div>`;
+      <div class="section-title">Sync your wearable</div>
+      <div id="fitbitCard" class="fitbit-card"></div>
+
+      <div class="section-title">Weekly check-in</div>
+      <div class="info-card">
+        <ul class="clean">
+          <li><b>Weigh daily</b> <span>— track the 7-day average, not single days.</span></li>
+          <li><b>Waist + photos</b> <span>every 1–2 weeks.</span></li>
+          <li><b>Log every working set</b> <span>and try to beat it.</span></li>
+          <li><b>Adjust on the trend</b> <span>— losing 0.5–1%/wk → hold; stalled 2 wks → −150 kcal or +2k steps; too fast → +150 kcal.</span></li>
+        </ul>
+        <div class="callout" style="margin-top:12px">Change <b>one</b> variable at a time, then wait ~2 weeks. Full protocol in <b>coaching-plan/07-tracking.md</b>.</div>
+      </div>
+
+      <div class="section-title">Supplements</div>
+      <div class="info-card"><ul class="clean">${supps}</ul></div>`;
   }
 
-  function cardioSection(plan) {
-    const c = plan.cardio;
-    return `
-      <h3>🏃 Cardio</h3>
-      <ul class="clean">
-        <li><b>Steps:</b> <span>${esc(c.steps)}</span></li>
-        <li><b>Sessions:</b> <span>${esc(c.sessions)}</span></li>
-      </ul>
-      <div class="callout">${esc(c.note)}</div>`;
-  }
-
-  function suppSection(plan) {
-    const items = plan.supplements
-      .map((s) => `<li><b>${esc(s.name)}</b> — <span>${esc(s.dose)} · ${esc(s.why)}</span></li>`)
-      .join('');
-    return `<h3>💊 Supplements (evidence-based)</h3><ul class="clean">${items}</ul>`;
-  }
-
-  function trackingSection() {
-    return `
-      <h3>📊 Track & Adjust Weekly</h3>
-      <ul class="clean">
-        <li><b>Weigh daily,</b> <span>use the 7-day average — single days are noisy.</span></li>
-        <li><b>Measure your waist</b> <span>and take photos every 1–2 weeks.</span></li>
-        <li><b>Log every working set</b> <span>(weight × reps × RIR) and try to beat it.</span></li>
-        <li><b>Adjust on the trend:</b> <span>losing 0.5–1%/wk → hold. Stalled 2 wks → −150 kcal or +2k steps. Losing too fast / lifts dropping → +150 kcal.</span></li>
-      </ul>
-      <div class="callout">Change <b>one</b> variable at a time, then wait ~2 weeks to read the result. See <b>coaching-plan/07-tracking.md</b> for the full protocol.</div>`;
-  }
-
+  /* ------------------------- Render plan -------------------------- */
   function render(plan) {
     const goalWord =
       plan.phase.direction === 'deficit' ? 'Fat Loss' :
       plan.phase.direction === 'surplus' ? 'Muscle Gain' : 'Recomposition';
-    const bf = plan.body.bodyFat != null ? ` · ~${plan.body.bodyFat}% body fat` : '';
-    const rate = plan.phase.targetRate ? ` Target loss rate: <b>${plan.phase.targetRate}</b>.` : '';
+    const bf = plan.body.bodyFat != null ? ` · ~${plan.body.bodyFat}% bf` : '';
+    const rate = plan.phase.targetRate ? ` Target rate: ${plan.phase.targetRate}.` : '';
 
     planEl.innerHTML = `
-      <h2>Your ${esc(goalWord)} Plan</h2>
-      <div class="phase-banner">
-        <div class="pill">Phase: ${esc(plan.phase.name)}</div>
-        <div>${esc(plan.phase.summary)}${rate}</div>
+      <div class="plan-hero">
+        <span class="phase-chip">${esc(plan.phase.name)}</span>
+        <div class="goal">Your ${esc(goalWord)} Plan</div>
+        <div class="athlete-line">
+          ${plan.body.sex === 'female' ? 'Female' : 'Male'} · ${plan.body.age} yrs ·
+          ${plan.body.weightKg} kg (${plan.body.weightLb} lb) · ${plan.body.heightCm} cm${bf} ·
+          ${esc(plan.experience)} · ${plan.days} days/week
+        </div>
+        <div class="phase-summary">${esc(plan.phase.summary)}${rate}</div>
       </div>
 
-      <p style="color:var(--muted);margin-top:-6px">
-        ${plan.body.sex === 'female' ? 'Female' : 'Male'}, ${plan.body.age} yrs ·
-        ${plan.body.weightKg} kg (${plan.body.weightLb} lb) · ${plan.body.heightCm} cm${bf} ·
-        ${esc(plan.experience)} · ${plan.days} days/week
-      </p>
+      <nav class="tabs" role="tablist">
+        <button data-tab="overview" class="active">Overview</button>
+        <button data-tab="nutrition">Nutrition</button>
+        <button data-tab="training">Training</button>
+        <button data-tab="track">Track</button>
+      </nav>
 
-      <h3>🔥 Energy Targets</h3>
-      ${statBlock(plan)}
-
-      ${macroSection(plan)}
-      ${trainingSection(plan)}
-      ${cardioSection(plan)}
-      ${suppSection(plan)}
-      ${trackingSection()}
+      <div class="panel" data-panel="overview">${overviewPanel(plan)}</div>
+      <div class="panel" data-panel="nutrition" hidden>${nutritionPanel(plan)}</div>
+      <div class="panel" data-panel="training" hidden>${trainingPanel(plan)}</div>
+      <div class="panel" data-panel="track" hidden>${trackPanel(plan)}</div>
 
       <div class="actions">
-        <button class="btn-ghost" id="editBtn">← Edit my answers</button>
-        <button class="btn-ghost" id="printBtn">🖨️ Save / print plan</button>
+        <button class="btn-ghost" id="editBtn">← Edit answers</button>
+        <button class="btn-ghost" id="printBtn">🖨️ Save / print</button>
       </div>
     `;
 
     planEl.hidden = false;
     intakeEl.hidden = true;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Tab switching
+    const tabBtns = planEl.querySelectorAll('.tabs button');
+    tabBtns.forEach((btn) =>
+      btn.addEventListener('click', () => activateTab(btn.dataset.tab))
+    );
 
     $('#editBtn').addEventListener('click', () => {
       planEl.hidden = true;
@@ -194,28 +225,108 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
     $('#printBtn').addEventListener('click', () => window.print());
+
+    renderFitbitCard();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  /* ---- Submit handler ---- */
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    errorEl.hidden = true;
+  function activateTab(name) {
+    planEl.querySelectorAll('.tabs button').forEach((b) =>
+      b.classList.toggle('active', b.dataset.tab === name)
+    );
+    planEl.querySelectorAll('.panel').forEach((p) => (p.hidden = p.dataset.panel !== name));
+  }
 
-    const data = readForm();
-    const err = validate(data);
-    if (err) {
-      errorEl.textContent = err;
-      errorEl.hidden = false;
+  /* ------------------------- Fitbit wiring ------------------------ */
+  function renderFitbitCard() {
+    const card = $('#fitbitCard');
+    if (!card || typeof Fitbit === 'undefined') return;
+
+    if (Fitbit.isConnected()) {
+      card.innerHTML = `
+        <div class="fb-head"><span class="fb-teal">●</span> Fitbit connected</div>
+        <div id="fbData" class="fb-note">Loading today's data…</div>
+        <div class="actions" style="margin-top:12px">
+          <button class="btn-ghost" id="fbRefresh">Refresh</button>
+          <button class="btn-ghost" id="fbDisconnect">Disconnect</button>
+        </div>`;
+      $('#fbRefresh').addEventListener('click', syncFitbit);
+      $('#fbDisconnect').addEventListener('click', () => { Fitbit.disconnect(); renderFitbitCard(); });
+      syncFitbit();
       return;
     }
 
+    const configured = Fitbit.isConfigured();
+    card.innerHTML = `
+      <div class="fb-head"><span class="fb-teal">⌚</span> Connect Fitbit</div>
+      <div class="fb-note">Auto-fill your steps, weight, sleep, and resting heart rate straight from your Fitbit account.</div>
+      <button class="btn-fitbit" id="fbConnect">Connect Fitbit</button>
+      ${configured ? '' : '<div class="fb-note">⚙️ Setup needed: add your Client ID in <b>app/js/fitbit-config.js</b> and host over HTTPS. See <b>app/FITBIT.md</b>.</div>'}`;
+    $('#fbConnect').addEventListener('click', async () => {
+      try {
+        await Fitbit.connect();
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+  }
+
+  async function syncFitbit() {
+    const box = $('#fbData');
+    if (!box) return;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const s = await Fitbit.fetchSnapshot(today);
+      const sleepH = s.sleepMinutes != null ? (s.sleepMinutes / 60).toFixed(1) + ' h' : '—';
+      box.outerHTML = `
+        <div id="fbData" class="stat-row" style="margin-top:6px">
+          <div class="stat"><div class="num">${s.steps ?? '—'}</div><div class="lbl">Steps</div></div>
+          <div class="stat"><div class="num">${s.restingHr ?? '—'}</div><div class="lbl">Rest HR</div></div>
+          <div class="stat"><div class="num">${sleepH}</div><div class="lbl">Sleep</div></div>
+          <div class="stat"><div class="num">${s.weight ?? '—'}</div><div class="lbl">Weight</div></div>
+        </div>`;
+    } catch (e) {
+      box.textContent = e.message;
+    }
+  }
+
+  /* --------------------------- Submit ----------------------------- */
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    errorEl.hidden = true;
+    const data = readForm();
+    const err = validate(data);
+    if (err) { errorEl.textContent = err; errorEl.hidden = false; return; }
     try {
       const plan = Coach.buildPlan(data);
+      localStorage.setItem(LS_INPUT, JSON.stringify(data));
       render(plan);
     } catch (ex) {
       errorEl.textContent = 'Something went wrong building your plan. Check your inputs and try again.';
       errorEl.hidden = false;
       console.error(ex);
+    }
+  });
+
+  /* ----------------------- Init / OAuth redirect ------------------ */
+  document.addEventListener('DOMContentLoaded', async () => {
+    let justLoggedIn = false;
+    try {
+      if (typeof Fitbit !== 'undefined') justLoggedIn = await Fitbit.handleRedirect();
+    } catch (e) {
+      console.warn('Fitbit redirect handling failed:', e.message);
+    }
+    const saved = localStorage.getItem(LS_INPUT);
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        prefillForm(data);
+        // After a Fitbit login (or on revisit), jump straight back to the plan.
+        if (justLoggedIn) {
+          render(Coach.buildPlan(data));
+          activateTab('track');
+        }
+      } catch { /* ignore corrupt saved state */ }
     }
   });
 })();

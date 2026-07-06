@@ -18,6 +18,12 @@ python3 -m http.server 8000   # then open http://localhost:8000
 
 The coaching **logic** lives in [`app/js/coach.js`](app/js/coach.js) — pure, documented functions (Mifflin-St Jeor energy, protein-first macros, frequency-based split selection) that mirror the markdown docs below, so the app and the written plan never disagree.
 
+The UI is a clean, Strava-style dashboard (light theme, card-based, tabbed: **Overview · Nutrition · Training · Track**) that works on phone and desktop.
+
+### ⌚ Fitbit sync (optional)
+
+The **Track** tab can pull your steps, weight, sleep, and resting heart rate straight from Fitbit so your weekly check-in fills itself. It uses the official Fitbit Web API (OAuth 2.0 + PKCE — no server needed). See [`app/FITBIT.md`](app/FITBIT.md) for the 5-minute setup (register a free Fitbit app, add your Client ID, host over HTTPS).
+
 ---
 
 ## 📂 What's in here
