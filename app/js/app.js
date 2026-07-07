@@ -93,7 +93,10 @@
     const cPct = (b.carbsKcal / total) * 100;
     const fPct = (b.fatKcal / total) * 100;
     return `
-      <div class="section-title">Hit these every day</div>
+      <div class="section-title">Log today's food</div>
+      <div id="foodLogCard" class="info-card"></div>
+
+      <div class="section-title">Your daily targets</div>
       <div class="stat-row">
         <div class="stat hero-stat"><div class="num">${plan.energy.target}</div><div class="lbl">Calories</div></div>
         <div class="stat"><div class="num">${m.protein}<small>g</small></div><div class="lbl">Protein</div></div>
@@ -130,9 +133,16 @@
               .map(
                 (w) => `
               <div class="ex-row">
-                <div>
+                <div style="flex:1">
                   <div class="ex-name">${esc(w.exercise)}</div>
                   ${w.note ? `<div class="ex-note">${esc(w.note)}</div>` : ''}
+                  <div class="ex-log" data-ex="${esc(w.exercise)}">
+                    <input class="w" type="number" inputmode="decimal" placeholder="wt" aria-label="weight" />
+                    <span class="x">×</span>
+                    <input class="r" type="number" inputmode="numeric" placeholder="reps" aria-label="reps" />
+                    <button type="button" class="logBtn">Log</button>
+                    <span class="last"></span>
+                  </div>
                 </div>
                 <div class="ex-prescription">${esc(w.sets)} × ${esc(w.reps)}<small>${esc(w.rir)} RIR</small></div>
               </div>`
@@ -154,6 +164,9 @@
       .map((s) => `<li><b>${esc(s.name)}</b> <span style="float:right">${esc(s.dose)}</span><div style="color:var(--muted);font-size:0.82rem;clear:both">${esc(s.why)}</div></li>`)
       .join('');
     return `
+      <div class="section-title">Bodyweight trend</div>
+      <div id="weightCard" class="info-card"></div>
+
       <div class="section-title">Sync your wearable</div>
       <div id="fitbitCard" class="fitbit-card"></div>
 
@@ -227,7 +240,148 @@
     $('#printBtn').addEventListener('click', () => window.print());
 
     renderFitbitCard();
+    currentUnit = unitsSel.value === 'imperial' ? 'lb' : 'kg';
+    refreshFoodCard(plan);
+    refreshWeightCard();
+    wireLifts();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ----------------------- Food logger ---------------------------- */
+  let currentUnit = 'kg';
+
+  function refreshFoodCard(plan) {
+    const card = $('#foodLogCard');
+    if (!card) return;
+    const kcalTarget = plan.energy.target;
+    const protTarget = plan.macros.protein;
+    const t = Store.foodTotals();
+    const entries = Store.getFood();
+
+    const kcalPct = Math.min(100, (t.kcal / kcalTarget) * 100);
+    const protPct = Math.min(100, (t.protein / protTarget) * 100);
+    const kcalOver = t.kcal > kcalTarget;
+
+    const list = entries.length
+      ? `<ul class="entries">${entries
+          .map(
+            (f, i) => `<li>
+              <span><b>${esc(f.name)}</b> <span class="meta">${f.kcal} kcal · ${f.protein}g P</span></span>
+              <button class="del" data-i="${i}" aria-label="remove">×</button>
+            </li>`
+          )
+          .join('')}</ul>`
+      : `<div class="empty">Nothing logged yet today. Add your first meal below.</div>`;
+
+    card.innerHTML = `
+      <div class="logger-head"><h3>🍽️ Today</h3><span class="today">${Store.todayISO()}</span></div>
+      <div class="prog">
+        <div class="prog-top"><span>Calories ${t.kcal} / ${kcalTarget}</span><span class="rem">${kcalOver ? '+' + (t.kcal - kcalTarget) + ' over' : (kcalTarget - t.kcal) + ' left'}</span></div>
+        <div class="track"><div class="fill kcal ${kcalOver ? 'over' : ''}" style="width:${kcalPct}%"></div></div>
+      </div>
+      <div class="prog">
+        <div class="prog-top"><span>Protein ${t.protein} / ${protTarget} g</span><span class="rem">${Math.max(0, protTarget - t.protein)}g left</span></div>
+        <div class="track"><div class="fill prot" style="width:${protPct}%"></div></div>
+      </div>
+      <div class="log-form">
+        <input id="fName" placeholder="Food (e.g. Chicken breast)" aria-label="food name" />
+        <input id="fKcal" class="sm" type="number" inputmode="numeric" placeholder="kcal" aria-label="calories" />
+        <input id="fProt" class="sm" type="number" inputmode="numeric" placeholder="P (g)" aria-label="protein" />
+        <button id="fAdd" aria-label="add food">+</button>
+      </div>
+      ${list}`;
+
+    const add = () => {
+      const name = $('#fName').value.trim();
+      const kcal = $('#fKcal').value;
+      const prot = $('#fProt').value;
+      if (!name && !kcal) return;
+      Store.addFood({ name: name || 'Food', kcal, protein: prot });
+      refreshFoodCard(plan);
+    };
+    $('#fAdd').addEventListener('click', add);
+    card.querySelectorAll('.log-form input').forEach((inp) =>
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); })
+    );
+    card.querySelectorAll('.entries .del').forEach((b) =>
+      b.addEventListener('click', () => { Store.removeFood(Number(b.dataset.i)); refreshFoodCard(plan); })
+    );
+  }
+
+  /* ----------------------- Weight logger + chart ------------------ */
+  function refreshWeightCard() {
+    const card = $('#weightCard');
+    if (!card) return;
+    const series = Store.getWeightSeries();
+    const avg = Store.weeklyAvg();
+    const trend = Store.weeklyTrend();
+
+    let trendPill = '<span class="trend-pill flat">Log a few days to see your trend</span>';
+    if (trend != null) {
+      const cls = trend < -0.05 ? 'down' : trend > 0.05 ? 'up' : 'flat';
+      const arrow = trend < -0.05 ? '▼' : trend > 0.05 ? '▲' : '■';
+      trendPill = `<span class="trend-pill ${cls}">${arrow} ${Math.abs(trend).toFixed(2)} ${currentUnit}/week</span>`;
+    }
+
+    card.innerHTML = `
+      <div class="logger-head"><h3>⚖️ Weight</h3>${avg != null ? `<span class="today">7-day avg: <b>${avg.toFixed(1)} ${currentUnit}</b></span>` : ''}</div>
+      <div class="chart-wrap">${weightChartSVG(series)}</div>
+      <div style="margin:10px 0">${trendPill}</div>
+      <div class="log-form">
+        <input id="wIn" type="number" inputmode="decimal" placeholder="Today's weight (${currentUnit})" aria-label="weight" />
+        <button id="wAdd" aria-label="log weight">+</button>
+      </div>`;
+
+    const add = () => {
+      const v = parseFloat($('#wIn').value);
+      if (!isFinite(v) || v <= 0) return;
+      Store.logWeight(v);
+      refreshWeightCard();
+    };
+    $('#wAdd').addEventListener('click', add);
+    $('#wIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+  }
+
+  /** Minimal, dependency-free SVG line chart of the weight series. */
+  function weightChartSVG(series) {
+    if (!series.length) return '<div class="empty">No weight logged yet. Add today\'s weight below to start your trend.</div>';
+    const W = 320, H = 120, pad = 22;
+    const vals = series.map((d) => d.kg);
+    let min = Math.min(...vals), max = Math.max(...vals);
+    if (min === max) { min -= 1; max += 1; }
+    const n = series.length;
+    const x = (i) => pad + (n === 1 ? (W - 2 * pad) / 2 : (i * (W - 2 * pad)) / (n - 1));
+    const y = (v) => pad + (H - 2 * pad) * (1 - (v - min) / (max - min));
+    const pts = series.map((d, i) => `${x(i).toFixed(1)},${y(d.kg).toFixed(1)}`).join(' ');
+    const dots = series.map((d, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(d.kg).toFixed(1)}" r="2.5" fill="#fc4c02" />`).join('');
+    const area = `${pad},${H - pad} ${pts} ${x(n - 1).toFixed(1)},${H - pad}`;
+    return `
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight trend chart">
+        <polyline points="${area}" fill="rgba(252,76,2,0.08)" stroke="none" />
+        <polyline points="${pts}" fill="none" stroke="#fc4c02" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        ${dots}
+        <text x="${pad}" y="12" font-size="9" fill="#6d6d78">${max.toFixed(1)}</text>
+        <text x="${pad}" y="${H - 6}" font-size="9" fill="#6d6d78">${min.toFixed(1)}</text>
+      </svg>`;
+  }
+
+  /* ----------------------- Per-exercise lift log ------------------ */
+  function wireLifts() {
+    planEl.querySelectorAll('.ex-log').forEach((row) => {
+      const ex = row.dataset.ex;
+      const last = Store.getLastLift(ex);
+      const lastEl = row.querySelector('.last');
+      const paint = (l) => { lastEl.innerHTML = l ? `last: <b>${l.w}×${l.r}</b>` : ''; };
+      paint(last);
+      row.querySelector('.logBtn').addEventListener('click', () => {
+        const w = row.querySelector('.w').value;
+        const r = row.querySelector('.r').value;
+        if (!w || !r) return;
+        paint(Store.logLift(ex, w, r));
+        row.querySelector('.w').value = '';
+        row.querySelector('.r').value = '';
+      });
+    });
   }
 
   function activateTab(name) {

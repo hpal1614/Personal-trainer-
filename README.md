@@ -20,6 +20,18 @@ The coaching **logic** lives in [`app/js/coach.js`](app/js/coach.js) — pure, d
 
 The UI is a clean, Strava-style dashboard (light theme, card-based, tabbed: **Overview · Nutrition · Training · Track**) that works on phone and desktop.
 
+### 🆓 Built-in trackers — no subscription, ever
+
+Everything the paid apps charge for is built in and stored **locally in your browser** (private, free, no account):
+
+| Replaces | Built-in feature | Where |
+|----------|------------------|-------|
+| MyFitnessPal Premium | **Food logger** — log meals, live calories + protein vs your target | Nutrition tab |
+| Strong / Hevy Pro | **Workout logger** — log each lift, see "last time" to beat it | Training tab |
+| Fitbod / trend graphs | **Weight tracker** — daily log, trend chart, 7-day average | Track tab |
+
+Your data lives in `localStorage` (see [`app/js/store.js`](app/js/store.js)) — nothing leaves your device. Back it up any time with the export/import functions in the store.
+
 ### ⌚ Fitbit sync (optional)
 
 The **Track** tab can pull your steps, weight, sleep, and resting heart rate straight from Fitbit so your weekly check-in fills itself. It uses the official Fitbit Web API (OAuth 2.0 + PKCE — no server needed). See [`app/FITBIT.md`](app/FITBIT.md) for the 5-minute setup (register a free Fitbit app, add your Client ID, host over HTTPS).

@@ -202,6 +202,54 @@ ul.clean li span { color: var(--muted); }
 .btn-fitbit:hover { filter: brightness(0.95); }
 .fb-note { color: var(--muted); font-size: 0.85rem; margin-top: 10px; }
 
+/* ---------------- Loggers (food / weight / lifts) ---------------- */
+.logger-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.logger-head h3 { margin: 0; font-size: 1.05rem; }
+.logger-head .today { color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+
+/* progress bars for calories / protein */
+.prog { margin: 10px 0; }
+.prog .prog-top { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 700; margin-bottom: 5px; }
+.prog .prog-top .rem { color: var(--muted); font-weight: 600; }
+.prog .track { height: 10px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.prog .fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; }
+.prog .fill.kcal { background: var(--orange); }
+.prog .fill.prot { background: var(--good); }
+.prog .fill.over { background: #d1382c; }
+
+/* inline add form */
+.log-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.log-form input { flex: 1; min-width: 0; padding: 10px; font-size: 0.92rem; }
+.log-form input.sm { flex: 0 0 74px; }
+.log-form button { flex: 0 0 auto; cursor: pointer; border: none; background: var(--orange); color: #fff; font-weight: 800; border-radius: 10px; padding: 0 16px; font-size: 1.1rem; }
+.log-form button:hover { background: var(--orange-dk); }
+
+/* logged entries list */
+.entries { list-style: none; padding: 0; margin: 12px 0 0; }
+.entries li { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+.entries li:last-child { border-bottom: none; }
+.entries .meta { color: var(--muted); font-size: 0.82rem; }
+.entries .del { cursor: pointer; color: #c4c4cc; border: none; background: none; font-size: 1.1rem; padding: 0 4px; }
+.entries .del:hover { color: #d1382c; }
+.empty { color: var(--muted); font-size: 0.88rem; padding: 8px 0; }
+
+/* weight trend chart */
+.chart-wrap { margin-top: 8px; }
+.chart-wrap svg { width: 100%; height: auto; display: block; }
+.trend-pill { display: inline-block; font-size: 0.8rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; }
+.trend-pill.down { background: rgba(23,163,74,0.12); color: var(--good); }
+.trend-pill.up { background: rgba(209,56,44,0.1); color: #d1382c; }
+.trend-pill.flat { background: var(--line); color: var(--muted); }
+
+/* per-exercise lift logger */
+.ex-log { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.ex-log input { flex: 0 0 58px; padding: 7px 8px; font-size: 0.85rem; text-align: center; }
+.ex-log button { cursor: pointer; border: none; background: var(--ink); color: #fff; font-weight: 700; font-size: 0.8rem; border-radius: 8px; padding: 8px 12px; }
+.ex-log button:hover { background: #000; }
+.ex-log .last { color: var(--muted); font-size: 0.78rem; margin-left: auto; text-align: right; }
+.ex-log .last b { color: var(--good); }
+.ex-log .x { font-size: 0.8rem; color: var(--muted); }
+
 .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
 .btn-ghost {
   cursor: pointer; background: #fff; color: var(--ink); border: 1.5px solid var(--line);
