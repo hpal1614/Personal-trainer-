@@ -27,7 +27,7 @@ Everything the paid apps charge for is built in and stored **locally in your bro
 | Replaces | Built-in feature | Where |
 |----------|------------------|-------|
 | MyFitnessPal Premium | **Food logger** — log meals, live calories + protein vs your target | Nutrition tab |
-| Strong / Hevy Pro | **Workout logger** — log each lift, see "last time" to beat it | Training tab |
+| Strong / Hevy Pro | **Workout logger** — log every set, per-set history, "last time" to beat, exercise swaps, built-in rest timer | Training tab |
 | Fitbod / trend graphs | **Weight tracker** — daily log, trend chart, 7-day average | Track tab |
 
 Your data lives in `localStorage` (see [`app/js/store.js`](app/js/store.js)) — nothing leaves your device. Back it up any time with the export/import functions in the store.

@@ -17,9 +17,8 @@
   const emptyDB = () => ({
     weight: [],   // [{ date: 'YYYY-MM-DD', kg: Number }]
     food: {},     // { 'YYYY-MM-DD': [{ name, kcal, protein }] }
-    workout: {},  // { 'YYYY-MM-DD': { title, sets: { exerciseName: { w, r } } } }
-    // exerciseName -> last logged { date, w, r } for quick "beat last time"
-    lastLift: {},
+    workout: {},  // { 'YYYY-MM-DD': { title, sets: { exerciseName: [{ w, r }, ...] } } }
+    swaps: {},    // { defaultExerciseName: chosenAlternativeName }
   });
 
   function load() {
@@ -100,22 +99,72 @@
   }
 
   /* ---------------------------- Workouts ---------------------------- */
+  // A day's sets for an exercise are an ARRAY: [{ w, r }, ...] — one entry per
+  // working set. Old data stored a single {w,r} object; normalizeSets() upgrades
+  // it transparently on read so nobody loses history.
 
-  /** Save a top-set for an exercise on a date, and remember it as "last lift". */
-  function logLift(exercise, weight, reps, date = todayISO()) {
-    const db = load();
-    const day = (db.workout[date] = db.workout[date] || { title: '', sets: {} });
-    day.sets[exercise] = { w: Number(weight) || 0, r: Number(reps) || 0 };
-    db.lastLift[exercise] = { date, w: Number(weight) || 0, r: Number(reps) || 0 };
-    return save(db).lastLift[exercise];
+  function normalizeSets(v) {
+    if (!v) return [];
+    return Array.isArray(v) ? v : [v]; // migrate legacy single-set objects
   }
 
-  function getLastLift(exercise) {
-    return load().lastLift[exercise] || null;
+  /** Append one working set for an exercise on a date. Returns the day's sets. */
+  function logSet(exercise, weight, reps, date = todayISO()) {
+    const db = load();
+    const day = (db.workout[date] = db.workout[date] || { title: '', sets: {} });
+    const sets = normalizeSets(day.sets[exercise]);
+    sets.push({ w: Number(weight) || 0, r: Number(reps) || 0 });
+    day.sets[exercise] = sets;
+    return save(db).workout[date].sets[exercise];
+  }
+
+  function removeSet(exercise, index, date = todayISO()) {
+    const db = load();
+    const day = db.workout[date];
+    if (day && day.sets[exercise]) {
+      const sets = normalizeSets(day.sets[exercise]);
+      sets.splice(index, 1);
+      day.sets[exercise] = sets;
+      save(db);
+      return sets;
+    }
+    return [];
+  }
+
+  function getSets(exercise, date = todayISO()) {
+    return normalizeSets(getWorkout(date).sets[exercise]);
   }
 
   function getWorkout(date = todayISO()) {
     return load().workout[date] || { title: '', sets: {} };
+  }
+
+  /** Full history for an exercise: [{ date, sets }] newest-first, days with data only. */
+  function getExerciseHistory(exercise) {
+    const w = load().workout;
+    return Object.keys(w)
+      .filter((date) => normalizeSets(w[date].sets[exercise]).length)
+      .sort((a, b) => (a < b ? 1 : -1))
+      .map((date) => ({ date, sets: normalizeSets(w[date].sets[exercise]) }));
+  }
+
+  /** The most recent PRIOR session's sets for an exercise (to show "last time"). */
+  function getLastSession(exercise, beforeDate = todayISO()) {
+    const hist = getExerciseHistory(exercise).filter((h) => h.date < beforeDate);
+    return hist.length ? hist[0] : null;
+  }
+
+  /* ----------------------- Exercise swaps --------------------------- */
+
+  function setSwap(defaultExercise, chosen) {
+    const db = load();
+    if (!chosen || chosen === defaultExercise) delete db.swaps[defaultExercise];
+    else db.swaps[defaultExercise] = chosen;
+    return save(db).swaps;
+  }
+
+  function getSwap(defaultExercise) {
+    return load().swaps[defaultExercise] || null;
   }
 
   /* --------------------------- Utilities ---------------------------- */
@@ -137,7 +186,8 @@
     todayISO,
     logWeight, getWeightSeries, weeklyAvg, weeklyTrend,
     addFood, removeFood, getFood, foodTotals,
-    logLift, getLastLift, getWorkout,
+    logSet, removeSet, getSets, getWorkout, getExerciseHistory, getLastSession,
+    setSwap, getSwap,
     exportJSON, importJSON, clearAll,
   };
 

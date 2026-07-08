@@ -121,6 +121,39 @@
       </div>`;
   }
 
+  /** One exercise: name + swap, prescription, last-time hint, per-set logger. */
+  function exerciseRow(w) {
+    const def = w.exercise;
+    const current = (typeof Store !== 'undefined' && Store.getSwap(def)) || def;
+    const alts = w.alternatives && w.alternatives.length > 1 ? w.alternatives : null;
+    return `
+      <div class="ex-row" data-default="${esc(def)}" data-ex="${esc(current)}">
+        <div class="ex-head">
+          <div style="flex:1">
+            <div class="ex-name">
+              <span class="ex-name-text">${esc(current)}</span>
+              ${alts ? '<button type="button" class="swap-btn" aria-label="swap exercise" title="Swap exercise">⇄</button>' : ''}
+            </div>
+            ${w.note ? `<div class="ex-note">${esc(w.note)}</div>` : ''}
+          </div>
+          <div class="ex-prescription">${esc(w.sets)} × ${esc(w.reps)}<small>${esc(w.rir)} RIR</small></div>
+        </div>
+        ${alts ? `<div class="swap-menu" hidden>
+          <select aria-label="choose alternative">
+            ${alts.map((n) => `<option value="${esc(n)}"${n === current ? ' selected' : ''}>${esc(n)}</option>`).join('')}
+          </select>
+        </div>` : ''}
+        <div class="last-hint"></div>
+        <div class="set-list"></div>
+        <div class="ex-log">
+          <input class="w" type="number" inputmode="decimal" placeholder="wt" aria-label="weight" />
+          <span class="x">×</span>
+          <input class="r" type="number" inputmode="numeric" placeholder="reps" aria-label="reps" />
+          <button type="button" class="logBtn">+ Set</button>
+        </div>
+      </div>`;
+  }
+
   function trainingPanel(plan) {
     const t = plan.training;
     const cards = t.days
@@ -129,25 +162,7 @@
         <div class="day-card">
           <h4>💪 ${esc(d.title)}</h4>
           <div class="exs">
-            ${d.work
-              .map(
-                (w) => `
-              <div class="ex-row">
-                <div style="flex:1">
-                  <div class="ex-name">${esc(w.exercise)}</div>
-                  ${w.note ? `<div class="ex-note">${esc(w.note)}</div>` : ''}
-                  <div class="ex-log" data-ex="${esc(w.exercise)}">
-                    <input class="w" type="number" inputmode="decimal" placeholder="wt" aria-label="weight" />
-                    <span class="x">×</span>
-                    <input class="r" type="number" inputmode="numeric" placeholder="reps" aria-label="reps" />
-                    <button type="button" class="logBtn">Log</button>
-                    <span class="last"></span>
-                  </div>
-                </div>
-                <div class="ex-prescription">${esc(w.sets)} × ${esc(w.reps)}<small>${esc(w.rir)} RIR</small></div>
-              </div>`
-              )
-              .join('')}
+            ${d.work.map(exerciseRow).join('')}
           </div>
         </div>`
       )
@@ -244,7 +259,7 @@
     currentUnit = unitsSel.value === 'imperial' ? 'lb' : 'kg';
     refreshFoodCard(plan);
     refreshWeightCard();
-    wireLifts();
+    wireTraining();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -367,22 +382,131 @@
   }
 
   /* ----------------------- Per-exercise lift log ------------------ */
-  function wireLifts() {
-    planEl.querySelectorAll('.ex-log').forEach((row) => {
-      const ex = row.dataset.ex;
-      const last = Store.getLastLift(ex);
-      const lastEl = row.querySelector('.last');
-      const paint = (l) => { lastEl.innerHTML = l ? `last: <b>${l.w}×${l.r}</b>` : ''; };
-      paint(last);
-      row.querySelector('.logBtn').addEventListener('click', () => {
+  function wireTraining() {
+    planEl.querySelectorAll('.ex-row').forEach((row) => {
+      const def = row.dataset.default;
+      let current = row.dataset.ex;
+
+      const setListEl = row.querySelector('.set-list');
+      const lastEl = row.querySelector('.last-hint');
+      const nameEl = row.querySelector('.ex-name-text');
+
+      const fmtSets = (sets) => sets.map((s) => `${s.w}×${s.r}`).join(', ');
+
+      const paintLast = () => {
+        const last = Store.getLastSession(current);
+        lastEl.innerHTML = last
+          ? `Last time (${last.date.slice(5)}): <b>${fmtSets(last.sets)}</b>`
+          : '<span class="muted">No history yet — log your first set.</span>';
+      };
+
+      const paintSets = () => {
+        const sets = Store.getSets(current);
+        setListEl.innerHTML = sets.length
+          ? sets
+              .map(
+                (s, i) =>
+                  `<span class="set-chip">${i + 1}. <b>${s.w}×${s.r}</b><button class="set-del" data-i="${i}" aria-label="remove set">×</button></span>`
+              )
+              .join('')
+          : '';
+        setListEl.querySelectorAll('.set-del').forEach((b) =>
+          b.addEventListener('click', () => { Store.removeSet(current, Number(b.dataset.i)); paintSets(); })
+        );
+      };
+
+      paintLast();
+      paintSets();
+
+      // Log a set
+      const logSet = () => {
         const w = row.querySelector('.w').value;
         const r = row.querySelector('.r').value;
         if (!w || !r) return;
-        paint(Store.logLift(ex, w, r));
-        row.querySelector('.w').value = '';
+        Store.logSet(current, w, r);
+        paintSets();
         row.querySelector('.r').value = '';
-      });
+        row.querySelector('.w').focus();
+        startRest(); // auto-start the rest timer between sets
+      };
+      row.querySelector('.logBtn').addEventListener('click', logSet);
+      row.querySelectorAll('.ex-log input').forEach((inp) =>
+        inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') logSet(); })
+      );
+
+      // Swap exercise
+      const swapBtn = row.querySelector('.swap-btn');
+      const swapMenu = row.querySelector('.swap-menu');
+      if (swapBtn) {
+        swapBtn.addEventListener('click', () => { swapMenu.hidden = !swapMenu.hidden; });
+        swapMenu.querySelector('select').addEventListener('change', (e) => {
+          current = e.target.value;
+          Store.setSwap(def, current);
+          row.dataset.ex = current;
+          nameEl.textContent = current;
+          swapMenu.hidden = true;
+          paintLast();
+          paintSets();
+        });
+      }
     });
+  }
+
+  /* --------------------------- Rest timer ------------------------- */
+  let restInterval = null;
+  let restRemaining = 0;
+
+  function ensureRestBar() {
+    let bar = $('#restTimer');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'restTimer';
+      bar.hidden = true;
+      bar.innerHTML = `
+        <button class="rest-adjust" id="restMinus">−30s</button>
+        <div class="rest-face"><span id="restTime">2:00</span><small>rest</small></div>
+        <button class="rest-adjust" id="restPlus">+30s</button>
+        <button class="rest-skip" id="restSkip">Skip</button>`;
+      document.body.appendChild(bar);
+      $('#restPlus').addEventListener('click', () => adjustRest(30));
+      $('#restMinus').addEventListener('click', () => adjustRest(-30));
+      $('#restSkip').addEventListener('click', stopRest);
+    }
+    return bar;
+  }
+
+  function paintRest() {
+    const m = Math.floor(restRemaining / 60);
+    const s = restRemaining % 60;
+    const el = $('#restTime');
+    if (el) el.textContent = `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function startRest(seconds = 120) {
+    ensureRestBar().hidden = false;
+    restRemaining = seconds;
+    paintRest();
+    if (restInterval) clearInterval(restInterval);
+    restInterval = setInterval(() => {
+      restRemaining -= 1;
+      paintRest();
+      if (restRemaining <= 0) {
+        stopRest();
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // buzz when rest is up
+      }
+    }, 1000);
+  }
+
+  function adjustRest(delta) {
+    restRemaining = Math.max(5, restRemaining + delta);
+    paintRest();
+  }
+
+  function stopRest() {
+    if (restInterval) clearInterval(restInterval);
+    restInterval = null;
+    const bar = $('#restTimer');
+    if (bar) bar.hidden = true;
   }
 
   function activateTab(name) {
