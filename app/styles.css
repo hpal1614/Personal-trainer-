@@ -243,6 +243,20 @@ ul.clean li span { color: var(--muted); }
 .callout { background: var(--card-2); border-left: 3px solid var(--orange); border-radius: 8px; padding: 12px 14px; color: var(--ink-2); font-size: 0.9rem; }
 .callout b { color: var(--ink); }
 
+/* Weekly check-in (smart adjust) */
+.checkin { border-left: 4px solid var(--muted); padding: 4px 0 4px 14px; }
+.checkin.chk-on-track { border-color: var(--good); }
+.checkin.chk-adjust-down { border-color: var(--orange); }
+.checkin.chk-adjust-up { border-color: #2b83e0; }
+.checkin.chk-adherence { border-color: #f7b500; }
+.checkin.chk-need-data { border-color: var(--muted); }
+.chk-title { font-weight: 800; font-size: 1.05rem; margin-bottom: 4px; }
+.chk-detail { color: var(--ink-2); font-size: 0.92rem; }
+.chk-data { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 0.85rem; color: var(--muted); }
+.chk-data b { color: var(--ink); }
+.chk-adj { margin-top: 8px; font-size: 0.85rem; color: var(--good); font-weight: 600; }
+.chk-apply { width: 100%; margin-top: 14px; }
+
 /* Fitbit connect card */
 .fitbit-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
 .fitbit-card .fb-head { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; }
