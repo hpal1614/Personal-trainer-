@@ -65,7 +65,8 @@
     // Reasonable lean/high thresholds differ by sex.
     const lean = sex === 'female' ? 22 : 12;
     const high = sex === 'female' ? 30 : 18;
-    const bf = bodyFat == null ? null : Number(bodyFat);
+    // Treat blank / non-numeric body fat as "unknown" (null), not 0.
+    const bf = (bodyFat == null || bodyFat === '' || isNaN(Number(bodyFat))) ? null : Number(bodyFat);
 
     if (goal === 'gain') {
       return {
@@ -293,7 +294,12 @@
     const bmrValue = bmr({ weightKg: body.weightKg, heightCm: body.heightCm, age, sex });
     const maintenance = tdee({ bmrValue, activity: input.activity });
     const phase = determinePhase({ goal: input.goal, bodyFat: input.bodyFat, sex });
-    const calories = targetCalories({ maintenance, phase });
+    // Weekly check-ins can nudge the target up/down; carried on the input so a
+    // rebuild stays consistent. Clamped so it can never invert the goal.
+    const rawAdjust = Number(input.calorieAdjust) || 0;
+    const baseTarget = targetCalories({ maintenance, phase });
+    const calorieAdjust = Math.max(-Math.round(baseTarget * 0.25), Math.min(Math.round(baseTarget * 0.25), rawAdjust));
+    const calories = baseTarget + calorieAdjust;
     const macro = macros({ calories, weightLb: body.weightLb, phase });
     const split = trainingSplit({ days, equipment: input.equipment });
     const cardio = cardioPlan({ phase });
@@ -312,6 +318,8 @@
         bmr: Math.round(bmrValue),
         maintenance: Math.round(maintenance),
         target: Math.round(calories),
+        baseTarget: Math.round(baseTarget),
+        calorieAdjust: Math.round(calorieAdjust),
         adjustPct: Math.round(phase.adjustPct * 100),
       },
       phase,
@@ -323,6 +331,71 @@
       diet: input.diet,
       days,
     };
+  }
+
+  /* --------------------- Weekly check-in (smart adjust) ------------------ */
+  /**
+   * Turn the user's logged data into ONE concrete recommendation — the "ADJUST"
+   * step of the coaching loop. Pure function so it's fully testable.
+   *
+   * @param {object} p
+   * @param {string} p.direction    'deficit' | 'surplus' | 'maintenance'
+   * @param {number|null} p.weeklyKg trailing weekly weight change (neg = losing)
+   * @param {number|null} p.bodyweight latest logged weight (same unit as weeklyKg)
+   * @param {number|null} p.avgCalories avg logged calories over last 7 days (or null)
+   * @param {number} p.loggedDays days with food logged in the window
+   * @param {number} p.calorieTarget current daily calorie target
+   * @returns {{status,title,detail,deltaKcal}}
+   */
+  function weeklyRecommendation(p) {
+    const { direction, weeklyKg, bodyweight, avgCalories, loggedDays, calorieTarget } = p;
+
+    if (weeklyKg == null || !bodyweight) {
+      return {
+        status: 'need-data',
+        title: 'Keep logging your weight',
+        detail: 'Weigh in daily for about 2 weeks — once there are two weeks of data I can read your trend and tell you exactly what to change.',
+        deltaKcal: 0,
+      };
+    }
+
+    const pct = (weeklyKg / bodyweight) * 100; // % bodyweight/week (neg = losing)
+    const rate = `${weeklyKg < 0 ? '−' : '+'}${Math.abs(weeklyKg).toFixed(2)}/wk (${Math.abs(pct).toFixed(2)}%)`;
+
+    // Is food adherence trustworthy enough to base a change on?
+    const overEating = avgCalories != null && loggedDays >= 3 && avgCalories > calorieTarget + 100;
+
+    if (direction === 'deficit') {
+      if (pct <= -0.5 && pct >= -1.25) {
+        return { status: 'on-track', title: 'On track — hold everything', detail: `You're losing ${rate}. That's the sweet spot for fat loss with muscle retention. Don't change a thing.`, deltaKcal: 0 };
+      }
+      if (pct > -0.5) {
+        if (overEating) {
+          return { status: 'adherence', title: 'Hit your target first', detail: `Fat loss has stalled (${rate}), but you're averaging ${avgCalories} kcal vs your ${calorieTarget} target. Hit the target consistently for a week before we lower the number.`, deltaKcal: 0 };
+        }
+        return { status: 'adjust-down', title: 'Stalled — cut ~150 kcal', detail: `You're only at ${rate}. Drop your target by ~150 kcal (from carbs/fat) or add ~2,000 steps/day, then recheck in 1–2 weeks.`, deltaKcal: -150 };
+      }
+      return { status: 'adjust-up', title: 'Losing too fast — add ~150 kcal', detail: `You're dropping ${rate} — fast enough to risk muscle. Add ~150 kcal (protein/carbs) to protect your gains.`, deltaKcal: 150 };
+    }
+
+    if (direction === 'surplus') {
+      if (pct >= 0.2 && pct <= 0.6) {
+        return { status: 'on-track', title: 'On track — keep building', detail: `You're gaining ${rate} — a lean, controlled rate. Hold your calories.`, deltaKcal: 0 };
+      }
+      if (pct < 0.2) {
+        return { status: 'adjust-up', title: 'Not growing — add ~150 kcal', detail: `You're only at ${rate}. Add ~150 kcal (mostly carbs) to drive muscle gain, then recheck.`, deltaKcal: 150 };
+      }
+      return { status: 'adjust-down', title: 'Gaining too fast — cut ~150 kcal', detail: `You're gaining ${rate} — that's more fat than you need. Trim ~150 kcal to stay lean.`, deltaKcal: -150 };
+    }
+
+    // maintenance / recomp
+    if (Math.abs(pct) <= 0.3) {
+      return { status: 'on-track', title: 'Holding steady — perfect for recomp', detail: `Weight is stable (${rate}). With hard training and high protein you're trading fat for muscle. Keep going.`, deltaKcal: 0 };
+    }
+    if (pct < 0) {
+      return { status: 'adjust-up', title: 'Drifting down — add ~100 kcal', detail: `You're losing ${rate}. For a recomp we want stable weight — add ~100 kcal.`, deltaKcal: 100 };
+    }
+    return { status: 'adjust-down', title: 'Drifting up — cut ~100 kcal', detail: `You're gaining ${rate}. For a recomp we want stable weight — trim ~100 kcal.`, deltaKcal: -100 };
   }
 
   /* ------------------------- Exercise database --------------------------- */
@@ -451,6 +524,7 @@
     macros,
     determinePhase,
     trainingSplit,
+    weeklyRecommendation,
     ACTIVITY_MULTIPLIERS,
     _normalizeBody: normalizeBody,
   };

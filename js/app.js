@@ -186,15 +186,7 @@
       <div id="fitbitCard" class="fitbit-card"></div>
 
       <div class="section-title">Weekly check-in</div>
-      <div class="info-card">
-        <ul class="clean">
-          <li><b>Weigh daily</b> <span>— track the 7-day average, not single days.</span></li>
-          <li><b>Waist + photos</b> <span>every 1–2 weeks.</span></li>
-          <li><b>Log every working set</b> <span>and try to beat it.</span></li>
-          <li><b>Adjust on the trend</b> <span>— losing 0.5–1%/wk → hold; stalled 2 wks → −150 kcal or +2k steps; too fast → +150 kcal.</span></li>
-        </ul>
-        <div class="callout" style="margin-top:12px">Change <b>one</b> variable at a time, then wait ~2 weeks. Full protocol in <b>coaching-plan/07-tracking.md</b>.</div>
-      </div>
+      <div id="checkinCard" class="info-card"></div>
 
       <div class="section-title">Supplements</div>
       <div class="info-card"><ul class="clean">${supps}</ul></div>`;
@@ -259,6 +251,7 @@
     currentUnit = unitsSel.value === 'imperial' ? 'lb' : 'kg';
     refreshFoodCard(plan);
     refreshWeightCard();
+    renderCheckin(plan);
     wireTraining();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -450,6 +443,66 @@
         });
       }
     });
+  }
+
+  /* --------------------- Weekly check-in (smart adjust) ----------- */
+  function renderCheckin(plan) {
+    const card = $('#checkinCard');
+    if (!card) return;
+
+    const series = Store.getWeightSeries();
+    const bodyweight = series.length ? series[series.length - 1].kg : null;
+    const weeklyKg = Store.weeklyTrend();
+    const { avg, loggedDays } = Store.recentCalories(7);
+
+    const rec = Coach.weeklyRecommendation({
+      direction: plan.phase.direction,
+      weeklyKg,
+      bodyweight,
+      avgCalories: avg,
+      loggedDays,
+      calorieTarget: plan.energy.target,
+    });
+
+    const adj = plan.energy.calorieAdjust || 0;
+    const adjNote = adj !== 0
+      ? `<div class="chk-adj">Target adjusted ${adj > 0 ? '+' : ''}${adj} kcal → now <b>${plan.energy.target} kcal</b></div>`
+      : '';
+
+    const applyBtn = rec.deltaKcal
+      ? `<button class="btn-primary chk-apply" id="chkApply">Apply ${rec.deltaKcal > 0 ? '+' : ''}${rec.deltaKcal} kcal → ${plan.energy.target + rec.deltaKcal}</button>`
+      : '';
+
+    const dataLine = weeklyKg != null
+      ? `<div class="chk-data">
+           <span>📉 Trend: <b>${weeklyKg < 0 ? '−' : '+'}${Math.abs(weeklyKg).toFixed(2)} ${currentUnit}/wk</b></span>
+           <span>🍽️ Logged: <b>${avg != null ? avg + ' kcal' : '—'}</b>${loggedDays ? ` · ${loggedDays}/7 days` : ''}</span>
+         </div>`
+      : '';
+
+    card.innerHTML = `
+      <div class="checkin chk-${rec.status}">
+        <div class="chk-title">${esc(rec.title)}</div>
+        <div class="chk-detail">${esc(rec.detail)}</div>
+        ${dataLine}
+        ${adjNote}
+        ${applyBtn}
+      </div>
+      <div class="callout" style="margin-top:12px">Change <b>one</b> thing at a time, then recheck in ~2 weeks. Success = waist shrinking + lifts holding, not just the scale.</div>`;
+
+    const apply = $('#chkApply');
+    if (apply) {
+      apply.addEventListener('click', () => {
+        try {
+          const saved = JSON.parse(localStorage.getItem(LS_INPUT) || '{}');
+          saved.calorieAdjust = (Number(saved.calorieAdjust) || 0) + rec.deltaKcal;
+          localStorage.setItem(LS_INPUT, JSON.stringify(saved));
+          const updated = Coach.buildPlan(saved);
+          render(updated);
+          activateTab('track');
+        } catch (e) { console.error(e); }
+      });
+    }
   }
 
   /* --------------------------- Rest timer ------------------------- */

@@ -98,6 +98,24 @@
     );
   }
 
+  /** Average logged calories over the last N days (days with food only). */
+  function recentCalories(days = 7) {
+    const food = load().food;
+    const base = new Date(todayISO());
+    let sum = 0, loggedDays = 0;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(base);
+      d.setDate(base.getDate() - i);
+      const iso = d.toISOString().slice(0, 10);
+      const entries = food[iso];
+      if (entries && entries.length) {
+        loggedDays++;
+        sum += entries.reduce((s, f) => s + (f.kcal || 0), 0);
+      }
+    }
+    return { avg: loggedDays ? Math.round(sum / loggedDays) : null, loggedDays };
+  }
+
   /* ---------------------------- Workouts ---------------------------- */
   // A day's sets for an exercise are an ARRAY: [{ w, r }, ...] — one entry per
   // working set. Old data stored a single {w,r} object; normalizeSets() upgrades
@@ -185,7 +203,7 @@
   const Store = {
     todayISO,
     logWeight, getWeightSeries, weeklyAvg, weeklyTrend,
-    addFood, removeFood, getFood, foodTotals,
+    addFood, removeFood, getFood, foodTotals, recentCalories,
     logSet, removeSet, getSets, getWorkout, getExerciseHistory, getLastSession,
     setSwap, getSwap,
     exportJSON, importJSON, clearAll,
