@@ -60,6 +60,28 @@ body {
 h1 { margin: 0 0 6px; font-size: clamp(1.5rem, 4vw, 1.9rem); letter-spacing: -0.5px; }
 .subtitle { color: var(--muted); margin: 0 0 26px; font-size: 0.96rem; }
 
+/* ---------------- Onboarding wizard ---------------- */
+.wizard { overflow: hidden; }
+.wiz-progress { height: 6px; background: var(--line); border-radius: 999px; margin-bottom: 24px; overflow: hidden; }
+.wiz-progress-bar { height: 100%; width: 0; background: var(--orange); border-radius: 999px; transition: width 0.35s ease; }
+
+.step { animation: fade 0.28s ease; min-height: 240px; }
+.step-title { font-size: clamp(1.3rem, 4vw, 1.6rem); letter-spacing: -0.4px; margin: 0 0 18px; }
+.step-title .opt { font-style: normal; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+
+.welcome { text-align: center; padding: 20px 4px 8px; }
+.welcome-emoji { font-size: 3.4rem; line-height: 1; margin-bottom: 10px; }
+.welcome h1 { font-size: clamp(1.6rem, 5vw, 2rem); margin: 0 0 10px; }
+.welcome .subtitle { margin: 0 auto; max-width: 34ch; }
+
+.chips.stacked { flex-direction: column; }
+.chips.stacked label { width: 100%; }
+.chips.stacked span { display: block; width: 100%; padding: 16px 18px; font-size: 1rem; text-align: left; border-radius: 12px; }
+
+.wiz-nav { display: flex; gap: 12px; margin-top: 24px; }
+.wiz-nav .btn-primary { flex: 1; }
+.wiz-nav .btn-ghost { flex: 0 0 auto; }
+
 /* ---------------- Form ---------------- */
 fieldset { border: none; padding: 0; margin: 0 0 26px; }
 legend {

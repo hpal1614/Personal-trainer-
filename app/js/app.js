@@ -235,6 +235,7 @@
     $('#editBtn').addEventListener('click', () => {
       planEl.hidden = true;
       intakeEl.hidden = false;
+      if (typeof showStep === 'function') showStep(1); // skip the welcome screen when editing
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
     $('#printBtn').addEventListener('click', () => window.print());
@@ -444,10 +445,35 @@
     }
   }
 
-  /* --------------------------- Submit ----------------------------- */
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
+  /* ----------------------- Onboarding wizard ---------------------- */
+  const steps = Array.from(document.querySelectorAll('.step'));
+  const backBtn = $('#wizBack');
+  const nextBtn = $('#wizNext');
+  const wizBar = $('#wizBar');
+  let step = 0;
+
+  const NEXT_LABELS = ['Get started →', 'Next →', 'Next →', 'Next →', 'Build my plan →'];
+
+  function showStep(n) {
+    step = Math.max(0, Math.min(steps.length - 1, n));
+    steps.forEach((s) => (s.hidden = Number(s.dataset.step) !== step));
+    backBtn.hidden = step === 0;
+    nextBtn.textContent = NEXT_LABELS[step] || 'Next →';
+    wizBar.style.width = `${(step / (steps.length - 1)) * 100}%`;
     errorEl.hidden = true;
+    // focus the first input on data-entry steps for fast typing
+    const firstInput = steps[step].querySelector('input[type="number"], input:not([type="radio"])');
+    if (firstInput) setTimeout(() => firstInput.focus(), 50);
+  }
+
+  // Only step 2 (stats) has required fields.
+  function validateStep(n) {
+    if (n !== 2) return null;
+    const d = readForm();
+    return validate(d);
+  }
+
+  function buildAndShow() {
     const data = readForm();
     const err = validate(data);
     if (err) { errorEl.textContent = err; errorEl.hidden = false; return; }
@@ -460,7 +486,23 @@
       errorEl.hidden = false;
       console.error(ex);
     }
+  }
+
+  nextBtn.addEventListener('click', () => {
+    const err = validateStep(step);
+    if (err) { errorEl.textContent = err; errorEl.hidden = false; return; }
+    if (step === steps.length - 1) buildAndShow();
+    else showStep(step + 1);
   });
+  backBtn.addEventListener('click', () => showStep(step - 1));
+
+  // Enter advances the wizard instead of submitting the form.
+  form.addEventListener('submit', (e) => e.preventDefault());
+  form.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); nextBtn.click(); }
+  });
+
+  showStep(0);
 
   /* ----------------------- Init / OAuth redirect ------------------ */
   document.addEventListener('DOMContentLoaded', async () => {
