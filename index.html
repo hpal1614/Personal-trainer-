@@ -28,29 +28,37 @@
     </header>
 
     <main class="container">
-      <!-- ===================== INTAKE FORM ===================== -->
-      <section id="intake" class="card">
-        <h1>Let's build your plan</h1>
-        <p class="subtitle">
-          Answer these the way you'd answer a real coach. The app runs the same
-          logic a coach uses — Mifflin-St Jeor energy, a protein-first macro
-          split, and a training split matched to your schedule.
-        </p>
+      <!-- ===================== ONBOARDING WIZARD ===================== -->
+      <section id="intake" class="card wizard">
+        <div class="wiz-progress"><div class="wiz-progress-bar" id="wizBar"></div></div>
 
         <form id="coachForm" novalidate>
-          <!-- Goal -->
-          <fieldset>
-            <legend>1 · What's your main goal?</legend>
-            <div class="chips" data-field="goal">
-              <label><input type="radio" name="goal" value="cut" checked /><span>Lose fat</span></label>
-              <label><input type="radio" name="goal" value="recomp" /><span>Recomp (lean out + build)</span></label>
-              <label><input type="radio" name="goal" value="gain" /><span>Build muscle</span></label>
+          <!-- Step 0: Welcome -->
+          <div class="step" data-step="0">
+            <div class="welcome">
+              <div class="welcome-emoji">🏋️</div>
+              <h1>Your pocket coach</h1>
+              <p class="subtitle">
+                A few quick questions and you'll get a personalized fat-loss and
+                muscle plan — built on the same evidence a real coach uses. Free,
+                private, and it works on your phone. Takes under a minute.
+              </p>
             </div>
-          </fieldset>
+          </div>
 
-          <!-- Body stats -->
-          <fieldset>
-            <legend>2 · Your stats</legend>
+          <!-- Step 1: Goal -->
+          <div class="step" data-step="1" hidden>
+            <h2 class="step-title">What's your main goal?</h2>
+            <div class="chips stacked" data-field="goal">
+              <label><input type="radio" name="goal" value="cut" checked /><span>🔥 Lose fat</span></label>
+              <label><input type="radio" name="goal" value="recomp" /><span>♻️ Recomp — lean out + build</span></label>
+              <label><input type="radio" name="goal" value="gain" /><span>💪 Build muscle</span></label>
+            </div>
+          </div>
+
+          <!-- Step 2: Stats -->
+          <div class="step" data-step="2" hidden>
+            <h2 class="step-title">Your stats</h2>
             <div class="grid">
               <label class="field">
                 <span>Sex</span>
@@ -87,42 +95,41 @@
                 <input type="number" name="bodyFat" min="3" max="60" placeholder="e.g. 18" />
               </label>
             </div>
-          </fieldset>
+          </div>
 
-          <!-- Experience -->
-          <fieldset>
-            <legend>3 · Training experience</legend>
-            <div class="chips" data-field="experience">
-              <label><input type="radio" name="experience" value="beginner" /><span>Beginner (&lt;1 yr)</span></label>
-              <label><input type="radio" name="experience" value="intermediate" /><span>Intermediate (1–3 yrs)</span></label>
-              <label><input type="radio" name="experience" value="advanced" checked /><span>Advanced (3+ yrs)</span></label>
-            </div>
-          </fieldset>
+          <!-- Step 3: Training -->
+          <div class="step" data-step="3" hidden>
+            <h2 class="step-title">How you train</h2>
+            <fieldset>
+              <legend>Experience</legend>
+              <div class="chips" data-field="experience">
+                <label><input type="radio" name="experience" value="beginner" /><span>Beginner (&lt;1 yr)</span></label>
+                <label><input type="radio" name="experience" value="intermediate" /><span>Intermediate</span></label>
+                <label><input type="radio" name="experience" value="advanced" checked /><span>Advanced (3+ yrs)</span></label>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Days per week</legend>
+              <div class="chips" data-field="days">
+                <label><input type="radio" name="days" value="3" /><span>3</span></label>
+                <label><input type="radio" name="days" value="4" /><span>4</span></label>
+                <label><input type="radio" name="days" value="5" /><span>5</span></label>
+                <label><input type="radio" name="days" value="6" checked /><span>6</span></label>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Equipment</legend>
+              <div class="chips" data-field="equipment">
+                <label><input type="radio" name="equipment" value="full" checked /><span>Full gym</span></label>
+                <label><input type="radio" name="equipment" value="home" /><span>Home</span></label>
+                <label><input type="radio" name="equipment" value="min" /><span>Minimal</span></label>
+              </div>
+            </fieldset>
+          </div>
 
-          <!-- Equipment -->
-          <fieldset>
-            <legend>4 · Equipment access</legend>
-            <div class="chips" data-field="equipment">
-              <label><input type="radio" name="equipment" value="full" checked /><span>Full gym</span></label>
-              <label><input type="radio" name="equipment" value="home" /><span>Home (DBs/barbell)</span></label>
-              <label><input type="radio" name="equipment" value="min" /><span>Minimal/bodyweight</span></label>
-            </div>
-          </fieldset>
-
-          <!-- Days -->
-          <fieldset>
-            <legend>5 · Days per week you can train</legend>
-            <div class="chips" data-field="days">
-              <label><input type="radio" name="days" value="3" /><span>3</span></label>
-              <label><input type="radio" name="days" value="4" /><span>4</span></label>
-              <label><input type="radio" name="days" value="5" /><span>5</span></label>
-              <label><input type="radio" name="days" value="6" checked /><span>6</span></label>
-            </div>
-          </fieldset>
-
-          <!-- Activity + diet -->
-          <fieldset>
-            <legend>6 · Lifestyle & diet</legend>
+          <!-- Step 4: Lifestyle & diet -->
+          <div class="step" data-step="4" hidden>
+            <h2 class="step-title">Lifestyle &amp; diet <em class="opt">(optional)</em></h2>
             <div class="grid">
               <label class="field">
                 <span>Daily activity (outside training)</span>
@@ -143,10 +150,14 @@
                 </select>
               </label>
             </div>
-          </fieldset>
+          </div>
 
-          <button type="submit" class="btn-primary">Build my plan →</button>
           <p id="formError" class="error" hidden></p>
+
+          <div class="wiz-nav">
+            <button type="button" class="btn-ghost" id="wizBack" hidden>← Back</button>
+            <button type="button" class="btn-primary" id="wizNext">Get started →</button>
+          </div>
         </form>
       </section>
 
