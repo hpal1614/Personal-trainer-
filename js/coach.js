@@ -163,14 +163,33 @@
     return list[0].name;
   }
 
+  // Which equipment tiers a user can actually train with.
+  const ACCESS_TIERS = { full: ['full', 'home', 'min'], home: ['home', 'min'], min: ['min'] };
+
+  /** All exercise names for a movement slot that the user's equipment supports. */
+  function alternativesFor(slot, equipment) {
+    const tiers = ACCESS_TIERS[equipment] || ['full', 'home', 'min'];
+    const names = slot.options
+      .filter((o) => o.equip.some((t) => tiers.includes(t)))
+      .map((o) => o.name);
+    return [...new Set(names)]; // dedupe, preserve order
+  }
+
   function buildSession(template, equipment) {
-    return template.map((slot) => ({
-      exercise: pick(slot.options, equipment),
-      sets: slot.sets,
-      reps: slot.reps,
-      rir: slot.rir,
-      note: slot.note || '',
-    }));
+    return template.map((slot) => {
+      const exercise = pick(slot.options, equipment);
+      const alts = alternativesFor(slot, equipment);
+      // Ensure the chosen exercise is first in the alternatives list.
+      const alternatives = [exercise, ...alts.filter((n) => n !== exercise)];
+      return {
+        exercise,
+        alternatives,
+        sets: slot.sets,
+        reps: slot.reps,
+        rir: slot.rir,
+        note: slot.note || '',
+      };
+    });
   }
 
   /**
