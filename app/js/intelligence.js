@@ -167,10 +167,19 @@
     const evidence = [];
     if (weeklyKg != null) evidence.push(`7-day weight trend: ${weeklyKg < 0 ? '−' : '+'}${Math.abs(weeklyKg).toFixed(2)} ${'kg'}/week.`);
     if (rc.avg != null) evidence.push(`Logged food ${rc.loggedDays}/7 days, averaging ${rc.avg} kcal vs a ${ctx.plan.energy.target} target.`);
+    // Separate the INSIGHT headline from the RECOMMENDATION so the card never
+    // restates itself (weeklyRecommendation.title bundles both).
+    const statusTitle = {
+      'on-track': 'On track — hold steady',
+      'adjust-down': 'Fat loss has stalled',
+      'adjust-up': 'Losing weight too fast',
+      adherence: 'Hit your calorie target first',
+      'need-data': 'Keep logging your weight',
+    };
     const sig = {
       id: `weight_trend:${rec.status}`, type: 'weight_trend',
       severity, confidence, priority: rank(severity, confidence) + (rec.deltaKcal ? 8 : 0),
-      title: rec.title,
+      title: statusTitle[rec.status] || rec.title,
       explanation: `Your weight trend vs your ${ctx.plan.phase.name} target.`,
       reasoning: rec.detail,
       evidence,

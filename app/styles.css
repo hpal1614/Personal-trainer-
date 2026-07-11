@@ -291,6 +291,28 @@ ul.clean li span { color: var(--muted); }
 .pr-badge { background: rgba(255,106,43,0.12); border: 1px solid rgba(255,106,43,0.28); color: var(--text); border-radius: 12px; padding: 11px 14px; font-size: 0.9rem; margin-bottom: 12px; }
 .pr-badge b { color: var(--accent-2); }
 
+/* Today's Coaching Focus (Feature 002) */
+.focus { position: relative; border-left: 4px solid var(--muted); transition: opacity 0.25s ease; }
+.focus.focus-good { border-left-color: var(--good); }
+.focus.focus-info { border-left-color: var(--info); }
+.focus.focus-watch { border-left-color: var(--accent); }
+.focus.focus-alert { border-left-color: var(--bad); }
+.focus.acked { opacity: 0.6; }
+.focus-check { position: absolute; top: 14px; right: 16px; font-size: 0.72rem; font-weight: 800; color: var(--good); background: rgba(52,211,153,0.14); border: 1px solid rgba(52,211,153,0.3); padding: 4px 9px; border-radius: 999px; }
+.focus-title { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.3px; margin-bottom: 6px; padding-right: 96px; }
+.focus-reason { color: rgba(255,255,255,0.82); font-size: 0.94rem; }
+.focus-evidence { margin-top: 12px; }
+.focus-evidence summary { cursor: pointer; color: var(--accent-2); font-weight: 700; font-size: 0.85rem; list-style: none; }
+.focus-evidence summary::-webkit-details-marker { display: none; }
+.focus-evidence summary::before { content: '\25B8  '; }
+.focus-evidence[open] summary::before { content: '\25BE  '; }
+.focus-evidence ul { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 0.86rem; }
+.focus-evidence li { margin: 4px 0; }
+.focus-reco { margin-top: 14px; font-size: 0.98rem; font-weight: 600; color: var(--text); }
+.focus-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.focus-actions .btn-primary, .focus-actions .btn-ghost { flex: 1 1 auto; }
+.focus-actions .focus-ack[disabled] { opacity: 0.7; cursor: default; color: var(--good); border-color: rgba(52,211,153,0.4); }
+
 /* check-in */
 .checkin { border-left: 4px solid var(--muted); padding: 4px 0 4px 14px; }
 .checkin.chk-on-track { border-color: var(--good); }
