@@ -291,6 +291,25 @@ ul.clean li span { color: var(--muted); }
 .pr-badge { background: rgba(255,106,43,0.12); border: 1px solid rgba(255,106,43,0.28); color: var(--text); border-radius: 12px; padding: 11px 14px; font-size: 0.9rem; margin-bottom: 12px; }
 .pr-badge b { color: var(--accent-2); }
 
+/* Today / Daily Experience (Feature 003) */
+.greeting { margin-bottom: 6px; }
+.greeting-hi { font-size: clamp(1.5rem, 5vw, 1.9rem); font-weight: 800; letter-spacing: -0.6px; }
+.greeting-sub { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
+.today-workout-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.today-workout-title { font-size: 1.1rem; font-weight: 800; }
+.today-workout-meta { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+.today-nutri { display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.95rem; color: var(--muted); }
+.today-nutri small { color: var(--muted); }
+.today-nutri-num { font-size: 1.35rem; font-weight: 800; color: var(--text); }
+.today-weight { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.today-weight-num { font-size: 1.5rem; font-weight: 800; }
+.today-weight-trend { font-size: 0.85rem; font-weight: 700; color: var(--muted); }
+.today-weight-trend.down { color: var(--good); }
+.today-weight-trend.up { color: var(--bad); }
+.today-links { display: flex; gap: 10px; flex-wrap: wrap; }
+.today-link { flex: 1 1 30%; cursor: pointer; background: var(--glass); border: 1px solid var(--border); color: var(--text); border-radius: 14px; padding: 16px 10px; font-weight: 700; font-size: 0.9rem; backdrop-filter: var(--blur); }
+.today-link:hover { border-color: var(--accent); color: var(--accent-2); }
+
 /* Today's Coaching Focus (Feature 002) */
 .focus { position: relative; border-left: 4px solid var(--muted); transition: opacity 0.25s ease; }
 .focus.focus-good { border-left-color: var(--good); }
