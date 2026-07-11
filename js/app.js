@@ -69,9 +69,6 @@
       plan.phase.direction === 'surplus' ? `+${e.adjustPct}% surplus` : 'maintenance';
     const c = plan.cardio;
     return `
-      <div class="section-title">Today's Coaching Focus</div>
-      <div id="coachFocus" class="info-card"></div>
-
       <div class="section-title">Daily energy</div>
       <div class="stat-row">
         <div class="stat"><div class="num">${e.bmr}</div><div class="lbl">BMR</div></div>
@@ -201,6 +198,115 @@
       <div id="progressBody" class="info-card"></div>`;
   }
 
+  /* ----------------------- Today (Feature 003) -------------------- */
+  function todayPanel() {
+    return `
+      <div id="todayGreeting" class="greeting"></div>
+
+      <div class="section-title">🧠 Today's Coaching Focus</div>
+      <div id="coachFocus" class="info-card"></div>
+
+      <div class="section-title">🏋 Today's Workout</div>
+      <div id="todayWorkout" class="info-card"></div>
+
+      <div class="section-title">🍗 Nutrition</div>
+      <div id="todayNutrition" class="info-card"></div>
+
+      <div class="section-title">⚖ Check-in</div>
+      <div id="todayWeight" class="info-card"></div>
+
+      <div class="section-title">Everything else</div>
+      <div class="today-links">
+        <button class="today-link" data-goto="training">🏋 Training</button>
+        <button class="today-link" data-goto="nutrition">🍗 Nutrition</button>
+        <button class="today-link" data-goto="progress">📈 Progress</button>
+      </div>`;
+  }
+
+  // "More" merges the old Overview (energy/cardio) + Track (weight/fitbit/
+  // check-in/supplements) + plan editing, so Today can be the entry point.
+  function morePanel(plan) {
+    return `
+      ${overviewPanel(plan)}
+      ${trackPanel(plan)}
+      <div class="section-title">Your plan</div>
+      <div class="actions">
+        <button class="btn-ghost" id="editBtn">✏️ Edit plan</button>
+        <button class="btn-ghost" id="printBtn">🖨️ Save / print</button>
+      </div>`;
+  }
+
+  function greeting() {
+    const h = new Date().getHours();
+    if (h < 12) return { text: 'Good morning', emoji: '☀️' };
+    if (h < 18) return { text: 'Good afternoon', emoji: '👋' };
+    return { text: 'Good evening', emoji: '🌙' };
+  }
+
+  const dayOfYear = (iso) => {
+    const d = new Date(iso);
+    return Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+  };
+
+  function renderToday(plan) {
+    // Greeting (time-of-day for now; Coach Brain may drive the subline later)
+    const g = greeting();
+    const gEl = $('#todayGreeting');
+    if (gEl) gEl.innerHTML = `<div class="greeting-hi">${g.text} ${g.emoji}</div><div class="greeting-sub">Here's what matters today.</div>`;
+
+    // Coaching focus (shared card)
+    renderCoachFocus(plan);
+
+    // Today's workout — feature one session (no scheduler yet: rotate by date)
+    const wEl = $('#todayWorkout');
+    if (wEl && plan.training && plan.training.days.length) {
+      const idx = dayOfYear(Store.todayISO()) % plan.training.days.length;
+      const session = plan.training.days[idx];
+      const n = session.work.length;
+      const lo = Math.round(n * 7), hi = Math.round(n * 9); // rough duration estimate
+      wEl.innerHTML = `
+        <div class="today-workout-head">
+          <div><div class="today-workout-title">${esc(session.title)}</div>
+          <div class="today-workout-meta">${n} exercises · ~${lo}–${hi} min</div></div>
+        </div>
+        <button class="btn-primary" id="continueWorkout">Continue Workout →</button>`;
+      const cw = $('#continueWorkout');
+      if (cw) cw.addEventListener('click', () => activateTab('training'));
+    }
+
+    // Nutrition summary (today's logs vs targets)
+    const nEl = $('#todayNutrition');
+    if (nEl) {
+      const t = Store.foodTotals();
+      nEl.innerHTML = `
+        <div class="today-nutri">
+          <div><span class="today-nutri-num">${t.protein}</span> / ${plan.macros.protein} g <small>protein</small></div>
+          <div><span class="today-nutri-num">${t.kcal}</span> / ${plan.energy.target} <small>kcal</small></div>
+        </div>`;
+    }
+
+    // Weight summary (latest + weekly change)
+    const zEl = $('#todayWeight');
+    if (zEl) {
+      const series = Store.getWeightSeries();
+      const latest = series.length ? series[series.length - 1].kg : null;
+      const trend = Store.weeklyTrend();
+      if (latest == null) {
+        zEl.innerHTML = `<div class="empty">No weigh-ins yet. Add today's weight in the More tab to start your trend.</div>`;
+      } else {
+        const trendStr = trend != null
+          ? `<span class="today-weight-trend ${trend < -0.05 ? 'down' : trend > 0.05 ? 'up' : ''}">${trend < 0 ? '↓' : trend > 0 ? '↑' : '→'} ${Math.abs(trend).toFixed(1)} ${currentUnit} this week</span>`
+          : '<span class="today-weight-trend">keep logging for a weekly trend</span>';
+        zEl.innerHTML = `<div class="today-weight"><span class="today-weight-num">${latest} ${currentUnit}</span>${trendStr}</div>`;
+      }
+    }
+
+    // Everything-else links
+    planEl.querySelectorAll('.today-link').forEach((b) =>
+      b.addEventListener('click', () => activateTab(b.dataset.goto))
+    );
+  }
+
   /* ------------------------- Render plan -------------------------- */
   function render(plan) {
     const goalWord =
@@ -222,23 +328,18 @@
       </div>
 
       <nav class="tabs" role="tablist">
-        <button data-tab="overview" class="active">Overview</button>
-        <button data-tab="nutrition">Nutrition</button>
+        <button data-tab="today" class="active">Today</button>
         <button data-tab="training">Training</button>
+        <button data-tab="nutrition">Nutrition</button>
         <button data-tab="progress">Progress</button>
-        <button data-tab="track">Track</button>
+        <button data-tab="more">More</button>
       </nav>
 
-      <div class="panel" data-panel="overview">${overviewPanel(plan)}</div>
-      <div class="panel" data-panel="nutrition" hidden>${nutritionPanel(plan)}</div>
+      <div class="panel" data-panel="today">${todayPanel()}</div>
       <div class="panel" data-panel="training" hidden>${trainingPanel(plan)}</div>
+      <div class="panel" data-panel="nutrition" hidden>${nutritionPanel(plan)}</div>
       <div class="panel" data-panel="progress" hidden>${progressPanel()}</div>
-      <div class="panel" data-panel="track" hidden>${trackPanel(plan)}</div>
-
-      <div class="actions">
-        <button class="btn-ghost" id="editBtn">← Edit answers</button>
-        <button class="btn-ghost" id="printBtn">🖨️ Save / print</button>
-      </div>
+      <div class="panel" data-panel="more" hidden>${morePanel(plan)}</div>
     `;
 
     planEl.hidden = false;
@@ -263,7 +364,7 @@
     refreshFoodCard(plan);
     refreshWeightCard();
     renderCheckin(plan);
-    renderCoachFocus(plan);
+    renderToday(plan);
     wireTraining();
     renderProgress();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -880,17 +981,26 @@
     } catch (e) {
       console.warn('Fitbit redirect handling failed:', e.message);
     }
+    // Landing logic (Feature 003):
+    //  no plan   -> onboarding (wizard is shown by default)
+    //  plan ok   -> rebuild and open Today (returning users never re-onboard)
+    //  corrupt   -> friendly recovery, back to onboarding (logs are preserved)
     const saved = localStorage.getItem(LS_INPUT);
     if (saved) {
       try {
-        const data = JSON.parse(saved);
+        const data = JSON.parse(saved);          // may throw (corrupt JSON)
+        const plan = Coach.buildPlan(data);      // may throw (bad/incomplete)
         prefillForm(data);
-        // After a Fitbit login (or on revisit), jump straight back to the plan.
-        if (justLoggedIn) {
-          render(Coach.buildPlan(data));
-          activateTab('track');
-        }
-      } catch { /* ignore corrupt saved state */ }
+        render(plan);                            // lands on Today
+        if (justLoggedIn) activateTab('more');   // Fitbit lives under More
+      } catch (e) {
+        console.warn('Could not restore plan:', e && e.message);
+        // Drop only the corrupt plan input — never touch logged history.
+        try { localStorage.removeItem(LS_INPUT); } catch { /* ignore */ }
+        const note = $('#recoveryNote');
+        if (note) note.hidden = false;
+        if (typeof showStep === 'function') showStep(0);
+      }
     }
   });
 })();
