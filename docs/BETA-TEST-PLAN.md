@@ -42,6 +42,21 @@ For each user, a one-page note:
 - One thing they loved.
 - One thing they expected that wasn't there.
 
+## Metrics that matter (behavior over opinions)
+
+Two numbers tell us whether the core loop actually works. **Measure them by
+observation during the beta — not telemetry.** Ongoing measurement later must stay
+on-device / opt-in, or it breaks Principle 5 (privacy is a feature).
+
+1. **Workout completion rate** — of users who *start* a workout, how many *finish*
+   it? How long does it take? Where do they stop? This is the single best signal
+   that the loop is working. A low rate points straight at the friction to fix.
+2. **Time to first logged set** — from opening the app to recording the first set.
+   Every second removed here likely increases retention. Watch for anything that
+   delays it (a decision, a tap, a moment of "what do I do?").
+
+Retention is downstream of both: did they come back *tomorrow*, unprompted?
+
 ## Turning it into Feature 006
 After the two weeks, look for **patterns across users**, not one-off requests:
 - If ≥3 users hesitate at the same step → that's Feature 006.
