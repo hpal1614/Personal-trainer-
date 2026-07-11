@@ -1,6 +1,6 @@
 # Feature 001 — Coach Brain Foundation
 
-Status: **Implemented — awaiting post-implementation review (step 9).**
+Status: **Approved (PR review) — follow-ups applied. Ready for Feature 002.**
 Layer: Intelligence (Layer 2). User-visible: **No** (foundation only).
 
 ---
@@ -62,6 +62,16 @@ stall, PR, weight trend (wrap `weeklyRecommendation`), protein gap. Expose
 index.html without wiring any UI. Verify with Node + a browser smoke test."
 
 ## 9. Post-implementation review
-_Pending PM review. Files: `app/js/intelligence.js` (+ `index.html` script tag),
-`docs/PRINCIPLES.md` (Principle 6), `docs/INTELLIGENCE-ENGINE.md` (CoachSignal +
-getTopFocus)._
+**Approved** with three follow-ups, all applied (read-only, no schema change):
+- **`confidence` → 0–100** and calibrated to vary (stall 92%, PR 92%, weight 85%,
+  protein ~46%), and it now feeds priority ranking.
+- **`evidence: string[]`** added — data-backed bullets ("Last 3 sessions: …",
+  "1RM unchanged ~117 across 14 days").
+- **`reasoning`** layer added — Insight → **Reasoning** → Recommendation; the
+  stall reasoning includes a cross-lift check (exercise-specific vs systemic).
+- **Coach Memory** reserved in `INTELLIGENCE-ENGINE.md` §6b (pipeline placeholder,
+  no implementation).
+
+Re-verified: Node tests (fields present, 0–100 scale, calibrated confidence,
+single top focus) + browser smoke (loads, `debug()` works, no regression, no
+errors).

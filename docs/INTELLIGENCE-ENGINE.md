@@ -106,15 +106,25 @@ interface CoachSignal {
   type:           string;      // 'lift_stall' | 'pr' | 'weight_trend' | 'protein_gap' …
   subject?:       string;      // e.g. an exercise name
   severity:       'info' | 'good' | 'watch' | 'alert';
-  confidence:     number;      // 0–1
+  confidence:     number;      // 0–100 (also feeds priority ranking)
   priority:       number;      // computed impact score for ranking
-  title:          string;      // "Bench press has stalled"
-  explanation:    string;      // why this is true
+  title:          string;      // INSIGHT — "Bench press has stalled"
+  explanation:    string;      // the observed fact, one line
+  reasoning:      string;      // REASONING — the coach's "why", the thinking step
+  evidence:       string[];    // data-backed bullets the user can verify
   recommendation: string;      // what to do about it
   action?:        Action;      // optional machine-applicable change
   data:           Record<string, unknown>;
 }
 ```
+
+**The layered thinking (Insight → Reasoning → Recommendation):** a signal doesn't
+jump from observation to advice. `title`/`explanation` state *what is true*,
+`reasoning` explains *why it matters* (e.g. "other lifts are still progressing,
+so this is exercise-specific, not fatigue"), and `recommendation` says *what to
+do*. `evidence` backs it with the user's own numbers — trust comes from showing
+the work. `confidence` (0–100) both informs the user and is a ranking input, so
+a 96%-confident stall outranks a 41%-confident protein gap.
 
 A `CoachSignal` with no `action` is a pure observation (Phase 2). One with an
 `action` is a recommendation the Executor could apply (Phase 3/4).
@@ -203,6 +213,33 @@ via the Data Contract (§7).
 - **Phase 5 (NL):** natural language is an **input adapter** — text/voice →
   either a Store write ("Bench 100 for 5") or a Context query ("I only have 25
   min"). It feeds the same engine; it is not the intelligence.
+
+---
+
+## 6b. Coach Memory (reserved — not yet implemented)
+
+A future layer sits between insights and reasoning:
+
+```
+Data  →  Insights  →  Memory  →  Reasoning  →  Recommendation
+```
+
+**Coach Memory** holds *persistent* user facts — not transient insights — that
+make recommendations feel personal:
+
+- dislikes Bulgarian split squats
+- trains after work
+- prefers dumbbells
+- recurring shoulder irritation
+- usually misses Friday workouts
+
+When present, `buildContext()` will attach `memory` to the `Context`, and
+providers/reasoning may read it (e.g. never recommend an exercise the user
+flagged as painful; assume Friday sessions slip). It will live under its own
+store namespace (e.g. `coach_memory`), so adding it is **additive — no change to
+existing keys**. **No implementation in the current phase**; this section only
+reserves the concept and its place in the pipeline so nothing else is designed in
+a way that blocks it.
 
 ---
 
