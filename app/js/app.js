@@ -192,6 +192,12 @@
       <div class="info-card"><ul class="clean">${supps}</ul></div>`;
   }
 
+  function progressPanel() {
+    return `
+      <div class="section-title">Strength progress</div>
+      <div id="progressBody" class="info-card"></div>`;
+  }
+
   /* ------------------------- Render plan -------------------------- */
   function render(plan) {
     const goalWord =
@@ -216,12 +222,14 @@
         <button data-tab="overview" class="active">Overview</button>
         <button data-tab="nutrition">Nutrition</button>
         <button data-tab="training">Training</button>
+        <button data-tab="progress">Progress</button>
         <button data-tab="track">Track</button>
       </nav>
 
       <div class="panel" data-panel="overview">${overviewPanel(plan)}</div>
       <div class="panel" data-panel="nutrition" hidden>${nutritionPanel(plan)}</div>
       <div class="panel" data-panel="training" hidden>${trainingPanel(plan)}</div>
+      <div class="panel" data-panel="progress" hidden>${progressPanel()}</div>
       <div class="panel" data-panel="track" hidden>${trackPanel(plan)}</div>
 
       <div class="actions">
@@ -253,6 +261,7 @@
     refreshWeightCard();
     renderCheckin(plan);
     wireTraining();
+    renderProgress();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -503,6 +512,102 @@
         } catch (e) { console.error(e); }
       });
     }
+  }
+
+  /* ----------------------- Progress / history --------------------- */
+  let progressEx = null;
+
+  const est1RM = (w, r) => w * (1 + r / 30); // Epley formula
+
+  function bestSet(sets) {
+    return sets.reduce((best, s) => {
+      const e = est1RM(s.w, s.r);
+      return !best || e > best.e ? { w: s.w, r: s.r, e } : best;
+    }, null);
+  }
+
+  function renderProgress() {
+    const body = $('#progressBody');
+    if (!body) return;
+
+    const exs = Store.loggedExercises();
+    if (!exs.length) {
+      body.innerHTML =
+        '<div class="empty">📈 Log a few workouts in the Training tab and your strength charts will appear here — you\'ll watch your lifts climb week over week.</div>';
+      return;
+    }
+
+    // Default to the exercise with the most logged sessions (richest chart).
+    if (!progressEx || !exs.includes(progressEx)) {
+      progressEx = exs
+        .map((n) => ({ n, count: Store.getExerciseHistory(n).length }))
+        .sort((a, b) => b.count - a.count)[0].n;
+    }
+
+    const history = Store.getExerciseHistory(progressEx); // newest-first
+    const chrono = [...history].reverse(); // oldest-first for the chart
+    const points = chrono.map((h) => {
+      const b = bestSet(h.sets);
+      return { date: h.date, value: b ? b.e : 0 };
+    });
+
+    // Personal records
+    let prE = 0, prSet = null, prDate = '';
+    chrono.forEach((h) => {
+      const b = bestSet(h.sets);
+      if (b && b.e > prE) { prE = b.e; prSet = b; prDate = h.date; }
+    });
+
+    const sessionList = history
+      .slice(0, 8)
+      .map((h) => {
+        const b = bestSet(h.sets);
+        return `<li>
+          <span><b>${h.date.slice(5)}</b> · ${h.sets.map((s) => `${s.w}×${s.r}`).join(', ')}</span>
+          <span class="meta">best ~${Math.round(b.e)} ${currentUnit} 1RM</span>
+        </li>`;
+      })
+      .join('');
+
+    body.innerHTML = `
+      <div class="log-form" style="margin-bottom:14px">
+        <select id="progSelect" aria-label="choose exercise">
+          ${exs.map((n) => `<option value="${esc(n)}"${n === progressEx ? ' selected' : ''}>${esc(n)}</option>`).join('')}
+        </select>
+      </div>
+      ${prSet ? `<div class="pr-badge">🏆 Best: <b>${prSet.w}×${prSet.r}</b> (~${Math.round(prE)} ${currentUnit} est. 1RM) on ${prDate.slice(5)}</div>` : ''}
+      <div class="chart-wrap">${lineChartSVG(points, currentUnit)}</div>
+      <div class="chart-caption">Estimated 1-rep max per session — the honest way to track strength when reps &amp; weight vary.</div>
+      <ul class="entries" style="margin-top:14px">${sessionList}</ul>`;
+
+    const sel = $('#progSelect');
+    if (sel) sel.addEventListener('change', (e) => { progressEx = e.target.value; renderProgress(); });
+  }
+
+  /** Generic dependency-free SVG line chart for [{date, value}]. */
+  function lineChartSVG(series, unit) {
+    if (!series.length) return '<div class="empty">No data yet.</div>';
+    if (series.length === 1) {
+      return `<div class="single-point">One session logged (~${Math.round(series[0].value)} ${unit} 1RM). Log another to see the trend line.</div>`;
+    }
+    const W = 320, H = 130, pad = 24;
+    const vals = series.map((d) => d.value);
+    let min = Math.min(...vals), max = Math.max(...vals);
+    if (min === max) { min -= 1; max += 1; }
+    const n = series.length;
+    const x = (i) => pad + (i * (W - 2 * pad)) / (n - 1);
+    const y = (v) => pad + (H - 2 * pad) * (1 - (v - min) / (max - min));
+    const pts = series.map((d, i) => `${x(i).toFixed(1)},${y(d.value).toFixed(1)}`).join(' ');
+    const dots = series.map((d, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(d.value).toFixed(1)}" r="2.5" fill="#fc4c02" />`).join('');
+    const area = `${pad},${H - pad} ${pts} ${x(n - 1).toFixed(1)},${H - pad}`;
+    return `
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Strength progress chart">
+        <polyline points="${area}" fill="rgba(252,76,2,0.08)" stroke="none" />
+        <polyline points="${pts}" fill="none" stroke="#fc4c02" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        ${dots}
+        <text x="${pad}" y="13" font-size="9" fill="#6d6d78">${Math.round(max)} ${unit}</text>
+        <text x="${pad}" y="${H - 7}" font-size="9" fill="#6d6d78">${Math.round(min)} ${unit}</text>
+      </svg>`;
   }
 
   /* --------------------------- Rest timer ------------------------- */

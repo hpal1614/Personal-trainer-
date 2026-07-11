@@ -243,6 +243,12 @@ ul.clean li span { color: var(--muted); }
 .callout { background: var(--card-2); border-left: 3px solid var(--orange); border-radius: 8px; padding: 12px 14px; color: var(--ink-2); font-size: 0.9rem; }
 .callout b { color: var(--ink); }
 
+/* Progress / history */
+.pr-badge { background: rgba(252,76,2,0.08); color: var(--ink); border-radius: 10px; padding: 10px 14px; font-size: 0.9rem; margin-bottom: 12px; }
+.pr-badge b { color: var(--orange-dk); }
+.chart-caption { color: var(--muted); font-size: 0.78rem; margin-top: 6px; text-align: center; }
+.single-point { color: var(--ink-2); font-size: 0.9rem; padding: 22px 8px; text-align: center; background: var(--card-2); border-radius: 10px; }
+
 /* Weekly check-in (smart adjust) */
 .checkin { border-left: 4px solid var(--muted); padding: 4px 0 4px 14px; }
 .checkin.chk-on-track { border-color: var(--good); }
