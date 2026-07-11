@@ -58,6 +58,12 @@ Intelligence comes from the data the user already generates, not from more forms
 Everything stays on-device by default. Cloud/AI features are explicit, opt-in,
 and clearly disclosed — never the default path.
 
+**6. One priority at a time.**
+The app surfaces the *single* highest-impact recommendation for today. Additional
+insights remain available but do not compete for the user's attention. A good
+coach decides what matters most today — it does not bury the user in five
+warnings at once. The experience should feel calm, not like a dashboard of alerts.
+
 ---
 
 ## The separation law (non-negotiable)

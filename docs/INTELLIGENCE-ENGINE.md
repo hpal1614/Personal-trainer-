@@ -79,15 +79,45 @@ interface Action {
 }
 ```
 
-### The two engine calls the UI is allowed to make
+### The engine calls the UI is allowed to make
 
 ```ts
-Intelligence.getInsights(ctx: Context): Insight[]
-Intelligence.getRecommendations(ctx: Context): Recommendation[]
+Intelligence.getSignals(ctx: Context): CoachSignal[]   // all observations+advice
+Intelligence.getTopFocus(ctx: Context): CoachSignal | null  // the ONE priority
 ```
 
-That's it. The UI renders the arrays. It never inspects raw `Context` to decide
-anything.
+That's it. The UI renders what it's given. It never inspects raw `Context` to
+decide anything.
+
+**`getTopFocus` enforces Principle 6 (one priority at a time):** it ranks all
+signals by a computed `priority` (severity × confidence, with type weighting) and
+returns only the single highest-impact one for today. The rest stay available via
+`getSignals` but never compete for attention.
+
+### CoachSignal — the unified provider output (Feature 001)
+
+For the foundation, a provider returns one combined object that carries both the
+observation *and* the advice (an `Insight` fused with an optional
+`Recommendation`). This is the shape the UI will render:
+
+```ts
+interface CoachSignal {
+  id:             string;
+  type:           string;      // 'lift_stall' | 'pr' | 'weight_trend' | 'protein_gap' …
+  subject?:       string;      // e.g. an exercise name
+  severity:       'info' | 'good' | 'watch' | 'alert';
+  confidence:     number;      // 0–1
+  priority:       number;      // computed impact score for ranking
+  title:          string;      // "Bench press has stalled"
+  explanation:    string;      // why this is true
+  recommendation: string;      // what to do about it
+  action?:        Action;      // optional machine-applicable change
+  data:           Record<string, unknown>;
+}
+```
+
+A `CoachSignal` with no `action` is a pure observation (Phase 2). One with an
+`action` is a recommendation the Executor could apply (Phase 3/4).
 
 ---
 
