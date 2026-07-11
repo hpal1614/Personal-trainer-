@@ -127,7 +127,7 @@
     const current = (typeof Store !== 'undefined' && Store.getSwap(def)) || def;
     const alts = w.alternatives && w.alternatives.length > 1 ? w.alternatives : null;
     return `
-      <div class="ex-row" data-default="${esc(def)}" data-ex="${esc(current)}">
+      <div class="ex-row" data-default="${esc(def)}" data-ex="${esc(current)}" data-reps="${esc(w.reps)}">
         <div class="ex-head">
           <div style="flex:1">
             <div class="ex-name">
@@ -144,8 +144,10 @@
           </select>
         </div>` : ''}
         <div class="last-hint"></div>
+        <div class="beat-target"></div>
         <div class="set-list"></div>
         <div class="ex-log">
+          <span class="set-indicator"></span>
           <input class="w" type="number" inputmode="decimal" placeholder="wt" aria-label="weight" />
           <span class="x">×</span>
           <input class="r" type="number" inputmode="numeric" placeholder="reps" aria-label="reps" />
@@ -514,17 +516,47 @@
       const def = row.dataset.default;
       let current = row.dataset.ex;
 
+      const repRange = row.dataset.reps;
       const setListEl = row.querySelector('.set-list');
       const lastEl = row.querySelector('.last-hint');
+      const beatEl = row.querySelector('.beat-target');
       const nameEl = row.querySelector('.ex-name-text');
+      const wIn = row.querySelector('.w');
+      const rIn = row.querySelector('.r');
+      const logBtn = row.querySelector('.logBtn');
+      const indEl = row.querySelector('.set-indicator');
 
       const fmtSets = (sets) => sets.map((s) => `${s.w}×${s.r}`).join(', ');
 
-      const paintLast = () => {
+      // Zero-friction: preload the inputs, the "beat last time" target, and the
+      // right button label from the previous session. The user usually just taps.
+      const applyDefaults = () => {
         const last = Store.getLastSession(current);
+        // Last time
         lastEl.innerHTML = last
           ? `Last time (${last.date.slice(5)}): <b>${fmtSets(last.sets)}</b>`
-          : '<span class="muted">No history yet — log your first set.</span>';
+          : '<span class="muted">First time — log your set, and I\'ll preload it next time.</span>';
+        // Smart defaults + beat-last-time target (target computed in coach.js)
+        if (last && last.sets.length) {
+          const src = last.sets[last.sets.length - 1];
+          wIn.value = src.w;
+          rIn.value = src.r;
+          logBtn.textContent = '✓ Repeat Last Set';
+          const tgt = Coach.nextSetTarget(last.sets, repRange);
+          beatEl.innerHTML = tgt
+            ? `🎯 <b>Beat last time:</b> ${tgt.w}×${tgt.r} <span class="beat-delta">(${tgt.delta})</span>`
+            : '';
+        } else {
+          wIn.value = '';
+          rIn.value = '';
+          logBtn.textContent = 'Log Set';
+          beatEl.innerHTML = repRange ? `🎯 <b>Target:</b> ${esc(repRange)} reps` : '';
+        }
+        updateIndicator();
+      };
+
+      const updateIndicator = () => {
+        indEl.textContent = `Set ${Store.getSets(current).length + 1}`;
       };
 
       const paintSets = () => {
@@ -538,30 +570,31 @@
               .join('')
           : '';
         setListEl.querySelectorAll('.set-del').forEach((b) =>
-          b.addEventListener('click', () => { Store.removeSet(current, Number(b.dataset.i)); paintSets(); })
+          b.addEventListener('click', () => { Store.removeSet(current, Number(b.dataset.i)); paintSets(); updateIndicator(); })
         );
       };
 
-      paintLast();
+      applyDefaults();
       paintSets();
 
-      // Log a set
-      const logSet = () => {
-        const w = row.querySelector('.w').value;
-        const r = row.querySelector('.r').value;
-        if (!w || !r) return;
-        Store.logSet(current, w, r);
+      // Source-agnostic logging pipeline: taps/typing (and later voice) all land
+      // here. Inputs stay preloaded so the next "Repeat Last Set" is one tap
+      // (auto-advance to the next set); rest timer starts automatically.
+      const logCurrent = (weight, reps) => {
+        const wv = weight != null ? weight : wIn.value;
+        const rv = reps != null ? reps : rIn.value;
+        if (!wv || !rv) return;
+        Store.logSet(current, wv, rv);
         paintSets();
-        row.querySelector('.r').value = '';
-        row.querySelector('.w').focus();
-        startRest(); // auto-start the rest timer between sets
+        updateIndicator();
+        startRest();
       };
-      row.querySelector('.logBtn').addEventListener('click', logSet);
+      logBtn.addEventListener('click', () => logCurrent());
       row.querySelectorAll('.ex-log input').forEach((inp) =>
-        inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') logSet(); })
+        inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') logCurrent(); })
       );
 
-      // Swap exercise
+      // Swap exercise — re-preload for the new exercise.
       const swapBtn = row.querySelector('.swap-btn');
       const swapMenu = row.querySelector('.swap-menu');
       if (swapBtn) {
@@ -572,7 +605,7 @@
           row.dataset.ex = current;
           nameEl.textContent = current;
           swapMenu.hidden = true;
-          paintLast();
+          applyDefaults();
           paintSets();
         });
       }

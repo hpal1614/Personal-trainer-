@@ -398,6 +398,30 @@
     return { status: 'adjust-down', title: 'Drifting up — cut ~100 kcal', detail: `You're gaining ${rate}. For a recomp we want stable weight — trim ~100 kcal.`, deltaKcal: -100 };
   }
 
+  /* --------------------- Next-set target (Feature 004) ------------------- */
+  // Parse a prescription rep range string ("5–8", "10–12/leg", "15") -> {min,max}.
+  function parseReps(range) {
+    const nums = String(range || '').match(/\d+/g);
+    if (!nums || !nums.length) return null;
+    const a = nums.map(Number);
+    return { min: a[0], max: a.length > 1 ? a[1] : a[0] };
+  }
+
+  /**
+   * The "beat last time" target for the next set, from the last session's sets.
+   * Double-progression: add a rep until the top of the range, then add load and
+   * reset to the bottom. Returns null when there's no history to beat.
+   */
+  function nextSetTarget(lastSets, repRange) {
+    if (!lastSets || !lastSets.length) return null;
+    const last = lastSets[lastSets.length - 1];
+    const rr = parseReps(repRange);
+    if (rr && last.r >= rr.max) {
+      return { w: Math.round((last.w + 2.5) * 2) / 2, r: rr.min || last.r, delta: '+2.5 kg' };
+    }
+    return { w: last.w, r: last.r + 1, delta: '+1 rep' };
+  }
+
   /* ------------------------- Exercise database --------------------------- */
   // Tagged by equipment: 'full' (commercial gym), 'home' (DBs/barbell/bench),
   // 'min' (bodyweight/bands). pick() resolves the best available option.
@@ -525,6 +549,7 @@
     determinePhase,
     trainingSplit,
     weeklyRecommendation,
+    nextSetTarget,
     ACTIVITY_MULTIPLIERS,
     _normalizeBody: normalizeBody,
   };
