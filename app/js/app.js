@@ -161,10 +161,11 @@
     const cards = t.days
       .map(
         (d) => `
-        <div class="day-card">
+        <div class="day-card" data-title="${esc(d.title)}">
           <h4>💪 ${esc(d.title)}</h4>
           <div class="exs">
             ${d.work.map(exerciseRow).join('')}
+            <button type="button" class="btn-ghost finish-workout">✓ Finish Workout</button>
           </div>
         </div>`
       )
@@ -218,14 +219,53 @@
       </div>`;
   }
 
+  // Names of a session's exercises, honoring swaps.
+  function sessionNames(session) {
+    return session.work.map((w) => Store.getSwap(w.exercise) || w.exercise);
+  }
+
   // Adaptive workout state from today's logged sets (accounts for swaps).
   function sessionState(session) {
     const today = Store.todayISO();
-    const names = session.work.map((w) => Store.getSwap(w.exercise) || w.exercise);
+    const names = sessionNames(session);
     const done = names.filter((n) => Store.getSets(n, today).length > 0).length;
-    if (done === 0) return { label: 'Start Workout →' };
-    if (done < names.length) return { label: 'Continue Workout →' };
-    return { label: 'View Summary →' };
+    if (done === 0) return { label: 'Start Workout →', complete: false };
+    if (done < names.length) return { label: 'Continue Workout →', complete: false };
+    return { label: 'View Summary →', complete: true };
+  }
+
+  /* ------------------- Workout Complete (Feature 005) ------------- */
+  function openWorkoutComplete(names, title) {
+    if (typeof CoachBrain === 'undefined' || !currentPlan) return;
+    const s = CoachBrain.workoutSummary(CoachBrain.buildContext({ plan: currentPlan }), names);
+
+    const bullets = [`${s.totalSets} working sets completed`];
+    s.improvements.forEach((im) => {
+      if (im.repDelta > 0) bullets.push(`${im.exercise} improved by ${im.repDelta} rep${im.repDelta > 1 ? 's' : ''}`);
+      if (im.e1rmDelta > 0) bullets.push(`Estimated ${im.exercise} 1RM increased by ${im.e1rmDelta} ${currentUnit}`);
+    });
+    bullets.push(`Protein remaining: ${s.proteinRemaining} g`);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'wc-overlay';
+    overlay.innerHTML = `
+      <div class="wc-card">
+        <div class="wc-title">Workout Complete</div>
+        <div class="wc-sub">${s.allDone ? 'Nice work. You completed every planned exercise today.' : 'Nice work.'}</div>
+        <div class="section-title">Today${title ? ' · ' + esc(title) : ''}</div>
+        <ul class="wc-list">${bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
+        <div class="section-title">Coach's Note</div>
+        <div class="wc-note">${esc(s.note)}</div>
+        <div class="wc-next">Next: <b>${esc(s.nextAction.label)}</b></div>
+        <button class="btn-primary wc-continue">${s.nextAction.goto ? 'Continue →' : 'Done'}</button>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = () => { overlay.remove(); };
+    overlay.querySelector('.wc-continue').addEventListener('click', () => {
+      close();
+      activateTab(s.nextAction.goto || 'today');
+    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
   }
 
   // "More" merges the old Overview (energy/cardio) + Track (weight/fitbit/
@@ -319,9 +359,16 @@
     const stack = $('#todayStack');
     if (stack) stack.innerHTML = ordered.join('');
 
-    // Wire actions
+    // Wire actions — if the featured session is complete, "View Summary" opens
+    // the Workout Complete screen; otherwise go train.
     const cw = $('#continueWorkout');
-    if (cw) cw.addEventListener('click', () => activateTab('training'));
+    if (cw && plan.training && plan.training.days.length) {
+      const session = plan.training.days[dayOfYear(Store.todayISO()) % plan.training.days.length];
+      cw.addEventListener('click', () => {
+        if (sessionState(session).complete) openWorkoutComplete(sessionNames(session), session.title);
+        else activateTab('training');
+      });
+    }
     planEl.querySelectorAll('.today-link').forEach((b) =>
       b.addEventListener('click', () => activateTab(b.dataset.goto))
     );
@@ -594,6 +641,8 @@
         inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') logCurrent(); })
       );
 
+      // (finish-workout buttons are wired once, below)
+
       // Swap exercise — re-preload for the new exercise.
       const swapBtn = row.querySelector('.swap-btn');
       const swapMenu = row.querySelector('.swap-menu');
@@ -609,6 +658,15 @@
           paintSets();
         });
       }
+    });
+
+    // Finish Workout → the Workout Complete screen for that day's exercises.
+    planEl.querySelectorAll('.finish-workout').forEach((btn) => {
+      const dayCard = btn.closest('.day-card');
+      btn.addEventListener('click', () => {
+        const names = Array.from(dayCard.querySelectorAll('.ex-row')).map((r) => r.dataset.ex);
+        openWorkoutComplete(names, dayCard.dataset.title);
+      });
     });
   }
 

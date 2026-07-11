@@ -238,6 +238,45 @@
     return signals.slice().sort((a, b) => b.priority - a.priority)[0];
   }
 
+  /**
+   * Workout-complete summary (Feature 005) — calm closure, computed here so the
+   * UI never calculates. `names` = today's exercise names (current/swapped).
+   */
+  function workoutSummary(ctx, names) {
+    const S = ctx.store, today = ctx.today;
+    let totalSets = 0, doneCount = 0;
+    const improvements = [];
+    (names || []).forEach((ex) => {
+      const todaySets = S.getSets(ex, today);
+      if (todaySets.length) doneCount++;
+      totalSets += todaySets.length;
+      const last = S.getLastSession(ex, today);
+      if (todaySets.length && last && last.sets.length) {
+        const tb = bestSet(todaySets), lb = bestSet(last.sets);
+        if (tb && lb) {
+          const e1rmDelta = Math.round((tb.e - lb.e) * 10) / 10;
+          const repDelta = tb.r - lb.r;
+          if (e1rmDelta > 0.1) improvements.push({ exercise: ex, e1rmDelta, repDelta });
+        }
+      }
+    });
+    const allDone = (names || []).length > 0 && doneCount === names.length;
+    const proteinRemaining = ctx.plan ? Math.max(0, Math.round(ctx.plan.macros.protein - S.foodTotals(today).protein)) : 0;
+    const checkInMissing = !S.getWeightSeries().some((w) => w.date === today);
+
+    let note;
+    if (improvements.length) note = 'Your strength is moving in the right direction. Stay with this progression next session.';
+    else if (totalSets) note = 'Solid session — you held your numbers. Aim for one more rep next time.';
+    else note = 'Log your working sets to see today\'s progress.';
+
+    let nextAction;
+    if (proteinRemaining > 15) nextAction = { label: 'Log your post-workout meal', goto: 'nutrition' };
+    else if (checkInMissing) nextAction = { label: "Record today's weight", goto: 'more' };
+    else nextAction = { label: "You're finished for today", goto: null };
+
+    return { allDone, totalSets, improvements, proteinRemaining, checkInMissing, note, nextAction };
+  }
+
   /** Dev-tools helper: `Intelligence.debug()` in the console. */
   function debug(opts) {
     const ctx = buildContext(opts || {});
@@ -252,7 +291,7 @@
   }
 
   const Intelligence = {
-    buildContext, getSignals, getTopFocus, debug,
+    buildContext, getSignals, getTopFocus, workoutSummary, debug,
     providers: { weightTrend: weightTrendProvider, liftStall: liftStallProvider, pr: prProvider, proteinGap: proteinGapProvider },
     _est1RM: est1RM, _bestSet: bestSet, _rank: rank,
   };

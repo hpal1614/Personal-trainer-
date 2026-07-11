@@ -295,6 +295,29 @@ ul.clean li span { color: var(--muted); }
 .pr-badge { background: rgba(255,106,43,0.12); border: 1px solid rgba(255,106,43,0.28); color: var(--text); border-radius: 12px; padding: 11px 14px; font-size: 0.9rem; margin-bottom: 12px; }
 .pr-badge b { color: var(--accent-2); }
 
+/* Workout Complete (Feature 005) */
+.finish-workout { width: 100%; margin-top: 8px; }
+.wc-overlay {
+  position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: rgba(6,6,10,0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  animation: rise 0.3s cubic-bezier(.2,.7,.2,1);
+}
+.wc-card {
+  width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto;
+  background: var(--glass); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--border-str); border-radius: var(--radius); box-shadow: var(--shadow); padding: 26px 24px;
+}
+.wc-title { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.6px; }
+.wc-sub { color: var(--muted); margin: 4px 0 18px; }
+.wc-list { list-style: none; padding: 0; margin: 4px 0 4px; }
+.wc-list li { padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+.wc-list li:last-child { border-bottom: none; }
+.wc-list li::before { content: '✓ '; color: var(--good); font-weight: 800; }
+.wc-note { color: rgba(255,255,255,0.85); font-size: 0.95rem; background: rgba(255,106,43,0.08); border-left: 3px solid var(--accent); border-radius: 10px; padding: 12px 14px; }
+.wc-next { margin: 16px 0 6px; color: var(--muted); font-size: 0.92rem; }
+.wc-next b { color: var(--accent-2); }
+.wc-card .btn-primary { width: 100%; margin-top: 10px; }
+
 /* Today / Daily Experience (Feature 003) */
 .greeting { margin-bottom: 6px; }
 .greeting-hi { font-size: clamp(1.5rem, 5vw, 1.9rem); font-weight: 800; letter-spacing: -0.6px; }
