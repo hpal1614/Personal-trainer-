@@ -166,6 +166,18 @@
       .map((date) => ({ date, sets: normalizeSets(w[date].sets[exercise]) }));
   }
 
+  /** All exercise names that have any logged sets, alphabetical. */
+  function loggedExercises() {
+    const w = load().workout;
+    const names = new Set();
+    Object.keys(w).forEach((date) => {
+      Object.keys(w[date].sets || {}).forEach((ex) => {
+        if (normalizeSets(w[date].sets[ex]).length) names.add(ex);
+      });
+    });
+    return [...names].sort();
+  }
+
   /** The most recent PRIOR session's sets for an exercise (to show "last time"). */
   function getLastSession(exercise, beforeDate = todayISO()) {
     const hist = getExerciseHistory(exercise).filter((h) => h.date < beforeDate);
@@ -204,7 +216,7 @@
     todayISO,
     logWeight, getWeightSeries, weeklyAvg, weeklyTrend,
     addFood, removeFood, getFood, foodTotals, recentCalories,
-    logSet, removeSet, getSets, getWorkout, getExerciseHistory, getLastSession,
+    logSet, removeSet, getSets, getWorkout, getExerciseHistory, getLastSession, loggedExercises,
     setSwap, getSwap,
     exportJSON, importJSON, clearAll,
   };
