@@ -216,6 +216,23 @@ via the Data Contract (§7).
 
 ---
 
+## 6a. Urgency (reserved — Feature 002.2, not yet implemented)
+
+Beyond `severity`, every signal will carry an **urgency** — a coarse priority the
+Coach Brain uses to decide *encourage vs. intervene*:
+
+| `urgency` | Meaning | Examples |
+|---|---|---|
+| `critical` | Intervene now | recovery issue, potential injury |
+| `important` | Worth addressing | lift stalled, calories too low |
+| `positive` | Encourage / reassure | new PR, protein target hit, weight trend perfect |
+
+Initially derived from `severity` (`alert→critical`, `watch→important`,
+`good→positive`), but explicit so a provider can override (e.g. an injury signal
+is `critical` regardless of severity). This is what lets the app sometimes simply
+say *"keep doing exactly what you're doing"* — reassurance is coaching too.
+Additive field; no schema change. **Not implemented yet.**
+
 ## 6b. Coach Memory (reserved — not yet implemented)
 
 A future layer sits between insights and reasoning:

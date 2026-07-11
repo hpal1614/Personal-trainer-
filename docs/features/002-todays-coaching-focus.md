@@ -1,6 +1,6 @@
 # Feature 002 — Today's Coaching Focus
 
-Status: **Implemented — awaiting post-implementation review (step 9).**
+Status: **Approved (PR review) — review change applied. Complete.**
 Layer: UI (Layer 3), reading the Coach Brain (Layer 2). User-visible: **Yes** (first one).
 
 ---
@@ -67,6 +67,17 @@ recommendation. No calculations in the UI; do not show confidence; empty state w
 null. No regression."
 
 ## 9. Post-implementation review
-_Pending PM review. Note the sessionStorage deviation in §5. Files:
-`app/js/app.js` (renderCoachFocus + overview container), `app/styles.css` (.focus*),
-`app/js/intelligence.js` (weight_trend title/recommendation split)._
+**Approved.** One change requested and applied:
+- **Ack persistence:** replaced `sessionStorage` with a UI-preferences key
+  `ui_state_v1` → `{ coachFocus: { date, acknowledged } }` (per-day). Ephemeral
+  interface state, not product data. Verified: acknowledgment now **survives a
+  full app relaunch** the same day (localStorage), no `sessionStorage` remnant.
+
+Reserved from the review (captured, not built, per "before adding more
+intelligence"): **urgency levels** → `INTELLIGENCE-ENGINE.md §6a` (Feature 002.2);
+**coaching voice** → `docs/VOICE.md`.
+
+**Discovered (out of scope, flagged):** returning users with a saved plan land
+back on the onboarding wizard on reopen — the app doesn't auto-render the saved
+plan. This is exactly what **Feature 003 (Today as the landing screen)** should
+resolve.

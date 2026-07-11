@@ -460,16 +460,26 @@
 
   /* ------------------- Today's Coaching Focus (Feature 002) ------- */
   // The UI renders ONLY what the Coach Brain returns — no calculations here.
-  // "Mark as understood" persists per-day in sessionStorage (see feature note).
+  // "Mark as understood" is ephemeral INTERFACE state (not product data), stored
+  // in a tiny UI-preferences key `ui_state_v1`, per-day, so re-opening the app
+  // the same day doesn't ask the user to acknowledge again.
 
-  function focusAcked(today, id) {
-    try {
-      const a = JSON.parse(sessionStorage.getItem('coach_ack') || 'null');
-      return !!(a && a.date === today && a.id === id);
-    } catch { return false; }
+  const UI_STATE = 'ui_state_v1';
+  function readUiState() {
+    try { return JSON.parse(localStorage.getItem(UI_STATE) || '{}'); } catch { return {}; }
   }
-  function setFocusAcked(today, id) {
-    try { sessionStorage.setItem('coach_ack', JSON.stringify({ date: today, id })); } catch { /* ignore */ }
+  function writeUiState(patch) {
+    const s = readUiState();
+    Object.assign(s, patch);
+    try { localStorage.setItem(UI_STATE, JSON.stringify(s)); } catch { /* ignore */ }
+    return s;
+  }
+  function focusAcked(today) {
+    const cf = readUiState().coachFocus;
+    return !!(cf && cf.acknowledged && cf.date === today);
+  }
+  function setFocusAcked(today) {
+    writeUiState({ coachFocus: { date: today, acknowledged: true } });
   }
 
   // Proto-executor: applies an approved action. Only kind we emit today.
@@ -502,7 +512,7 @@
     }
 
     const sev = ['info', 'good', 'watch', 'alert'].includes(focus.severity) ? focus.severity : 'info';
-    const acked = focusAcked(today, focus.id);
+    const acked = focusAcked(today);
 
     const actionBtn = (focus.action && focus.action.kind === 'adjust_calories')
       ? `<button class="btn-primary focus-action">Apply ${focus.action.payload.delta > 0 ? '+' : ''}${focus.action.payload.delta} kcal/day</button>`
@@ -527,7 +537,7 @@
     const ab = card.querySelector('.focus-action');
     if (ab) ab.addEventListener('click', () => applyFocusAction(focus.action));
     const ak = card.querySelector('.focus-ack');
-    if (ak && !acked) ak.addEventListener('click', () => { setFocusAcked(today, focus.id); renderCoachFocus(plan); });
+    if (ak && !acked) ak.addEventListener('click', () => { setFocusAcked(today); renderCoachFocus(plan); });
   }
 
   /* --------------------- Weekly check-in (smart adjust) ----------- */
