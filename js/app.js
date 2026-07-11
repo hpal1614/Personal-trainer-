@@ -69,6 +69,9 @@
       plan.phase.direction === 'surplus' ? `+${e.adjustPct}% surplus` : 'maintenance';
     const c = plan.cardio;
     return `
+      <div class="section-title">Today's Coaching Focus</div>
+      <div id="coachFocus" class="info-card"></div>
+
       <div class="section-title">Daily energy</div>
       <div class="stat-row">
         <div class="stat"><div class="num">${e.bmr}</div><div class="lbl">BMR</div></div>
@@ -260,6 +263,7 @@
     refreshFoodCard(plan);
     refreshWeightCard();
     renderCheckin(plan);
+    renderCoachFocus(plan);
     wireTraining();
     renderProgress();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -452,6 +456,78 @@
         });
       }
     });
+  }
+
+  /* ------------------- Today's Coaching Focus (Feature 002) ------- */
+  // The UI renders ONLY what the Coach Brain returns — no calculations here.
+  // "Mark as understood" persists per-day in sessionStorage (see feature note).
+
+  function focusAcked(today, id) {
+    try {
+      const a = JSON.parse(sessionStorage.getItem('coach_ack') || 'null');
+      return !!(a && a.date === today && a.id === id);
+    } catch { return false; }
+  }
+  function setFocusAcked(today, id) {
+    try { sessionStorage.setItem('coach_ack', JSON.stringify({ date: today, id })); } catch { /* ignore */ }
+  }
+
+  // Proto-executor: applies an approved action. Only kind we emit today.
+  function applyFocusAction(action) {
+    if (!action || action.kind !== 'adjust_calories') return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(LS_INPUT) || '{}');
+      saved.calorieAdjust = (Number(saved.calorieAdjust) || 0) + action.payload.delta;
+      localStorage.setItem(LS_INPUT, JSON.stringify(saved));
+      render(Coach.buildPlan(saved));
+    } catch (e) { console.error(e); }
+  }
+
+  function renderCoachFocus(plan) {
+    const card = $('#coachFocus');
+    if (!card || typeof CoachBrain === 'undefined') return;
+
+    let focus = null;
+    try { focus = CoachBrain.getTopFocus(CoachBrain.buildContext({ plan })); }
+    catch (e) { console.warn('Coach Brain failed:', e && e.message); }
+
+    const today = Store.todayISO();
+
+    if (!focus) {
+      card.className = 'info-card focus focus-good';
+      card.innerHTML = `
+        <div class="focus-title">✓ You're on track</div>
+        <div class="focus-reason">Nothing needs changing today. Keep logging and I'll surface what matters, the moment it matters.</div>`;
+      return;
+    }
+
+    const sev = ['info', 'good', 'watch', 'alert'].includes(focus.severity) ? focus.severity : 'info';
+    const acked = focusAcked(today, focus.id);
+
+    const actionBtn = (focus.action && focus.action.kind === 'adjust_calories')
+      ? `<button class="btn-primary focus-action">Apply ${focus.action.payload.delta > 0 ? '+' : ''}${focus.action.payload.delta} kcal/day</button>`
+      : '';
+
+    const evidence = (focus.evidence && focus.evidence.length)
+      ? `<details class="focus-evidence"><summary>Show the evidence</summary><ul>${focus.evidence.map((e) => `<li>${esc(e)}</li>`).join('')}</ul></details>`
+      : '';
+
+    card.className = `info-card focus focus-${sev}${acked ? ' acked' : ''}`;
+    card.innerHTML = `
+      ${acked ? '<div class="focus-check">✓ Reviewed today</div>' : ''}
+      <div class="focus-title">${esc(focus.title)}</div>
+      <div class="focus-reason">${esc(focus.reasoning)}</div>
+      ${evidence}
+      <div class="focus-reco">👉 ${esc(focus.recommendation)}</div>
+      <div class="focus-actions">
+        ${actionBtn}
+        <button class="btn-ghost focus-ack"${acked ? ' disabled' : ''}>${acked ? '✓ Understood' : 'Mark as understood'}</button>
+      </div>`;
+
+    const ab = card.querySelector('.focus-action');
+    if (ab) ab.addEventListener('click', () => applyFocusAction(focus.action));
+    const ak = card.querySelector('.focus-ack');
+    if (ak && !acked) ak.addEventListener('click', () => { setFocusAcked(today, focus.id); renderCoachFocus(plan); });
   }
 
   /* --------------------- Weekly check-in (smart adjust) ----------- */
