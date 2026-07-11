@@ -1,6 +1,6 @@
 # Feature 003 — Daily Experience
 
-Status: **Implemented — awaiting post-implementation review (step 9).**
+Status: **Approved (PR review) — two refinements applied. Complete.**
 Layer: UI (Layer 3) + app lifecycle. User-visible: **Yes** (the entry point).
 
 ---
@@ -66,7 +66,18 @@ none → onboarding. No product-data schema change; never clear logs on edit. Ve
 the 8 scenarios."
 
 ## 9. Post-implementation review
-_Pending PM review. Note §5 (no name in greeting) and the date-rotation stand-in
-for a real workout scheduler. Files: `app/js/app.js` (todayPanel/renderToday/
-morePanel/greeting + landing logic + tab restructure), `app/index.html`
-(#recoveryNote), `app/styles.css` (.greeting/.today-*)._
+**Approved.** Greeting-without-name and workout date-rotation both endorsed
+("good enough for this stage"). Two refinements applied:
+- **Adaptive workout button:** label reflects today's logged sets for the
+  featured session — `Start Workout` (none) → `Continue Workout` (some) →
+  `View Summary` (all). Accounts for swaps; read-only over existing data.
+- **Focus-driven ordering:** the summary card matching today's top focus rises
+  just under the Coaching Focus — `protein_gap` → Nutrition first, `weight_trend`
+  → Check-in first, lift focus → Workout first. Gentle prioritization, nothing
+  hidden or animated.
+- **Bonus fix:** tab activation now re-renders the opened panel, so Today (and
+  Nutrition/More/Progress) always reflect the latest logs instead of a stale
+  snapshot from build time.
+
+Re-verified: all three button states + all three orderings via headless browser;
+no console errors.

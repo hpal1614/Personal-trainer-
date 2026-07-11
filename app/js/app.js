@@ -206,14 +206,7 @@
       <div class="section-title">🧠 Today's Coaching Focus</div>
       <div id="coachFocus" class="info-card"></div>
 
-      <div class="section-title">🏋 Today's Workout</div>
-      <div id="todayWorkout" class="info-card"></div>
-
-      <div class="section-title">🍗 Nutrition</div>
-      <div id="todayNutrition" class="info-card"></div>
-
-      <div class="section-title">⚖ Check-in</div>
-      <div id="todayWeight" class="info-card"></div>
+      <div id="todayStack"></div>
 
       <div class="section-title">Everything else</div>
       <div class="today-links">
@@ -221,6 +214,16 @@
         <button class="today-link" data-goto="nutrition">🍗 Nutrition</button>
         <button class="today-link" data-goto="progress">📈 Progress</button>
       </div>`;
+  }
+
+  // Adaptive workout state from today's logged sets (accounts for swaps).
+  function sessionState(session) {
+    const today = Store.todayISO();
+    const names = session.work.map((w) => Store.getSwap(w.exercise) || w.exercise);
+    const done = names.filter((n) => Store.getSets(n, today).length > 0).length;
+    if (done === 0) return { label: 'Start Workout →' };
+    if (done < names.length) return { label: 'Continue Workout →' };
+    return { label: 'View Summary →' };
   }
 
   // "More" merges the old Overview (energy/cardio) + Track (weight/fitbit/
@@ -254,54 +257,69 @@
     const gEl = $('#todayGreeting');
     if (gEl) gEl.innerHTML = `<div class="greeting-hi">${g.text} ${g.emoji}</div><div class="greeting-sub">Here's what matters today.</div>`;
 
-    // Coaching focus (shared card)
+    // Coaching focus (shared card) — always at the top.
     renderCoachFocus(plan);
 
-    // Today's workout — feature one session (no scheduler yet: rotate by date)
-    const wEl = $('#todayWorkout');
-    if (wEl && plan.training && plan.training.days.length) {
-      const idx = dayOfYear(Store.todayISO()) % plan.training.days.length;
-      const session = plan.training.days[idx];
-      const n = session.work.length;
-      const lo = Math.round(n * 7), hi = Math.round(n * 9); // rough duration estimate
-      wEl.innerHTML = `
-        <div class="today-workout-head">
-          <div><div class="today-workout-title">${esc(session.title)}</div>
-          <div class="today-workout-meta">${n} exercises · ~${lo}–${hi} min</div></div>
-        </div>
-        <button class="btn-primary" id="continueWorkout">Continue Workout →</button>`;
-      const cw = $('#continueWorkout');
-      if (cw) cw.addEventListener('click', () => activateTab('training'));
-    }
+    // --- Build the three summary cards as strings ---
 
-    // Nutrition summary (today's logs vs targets)
-    const nEl = $('#todayNutrition');
-    if (nEl) {
-      const t = Store.foodTotals();
-      nEl.innerHTML = `
-        <div class="today-nutri">
-          <div><span class="today-nutri-num">${t.protein}</span> / ${plan.macros.protein} g <small>protein</small></div>
-          <div><span class="today-nutri-num">${t.kcal}</span> / ${plan.energy.target} <small>kcal</small></div>
+    // Workout (featured session by date-rotation; adaptive button label)
+    let workoutHTML = '';
+    if (plan.training && plan.training.days.length) {
+      const session = plan.training.days[dayOfYear(Store.todayISO()) % plan.training.days.length];
+      const n = session.work.length;
+      const lo = Math.round(n * 7), hi = Math.round(n * 9);
+      const st = sessionState(session);
+      workoutHTML = `
+        <div class="section-title">🏋 Today's Workout</div>
+        <div class="info-card">
+          <div class="today-workout-head"><div>
+            <div class="today-workout-title">${esc(session.title)}</div>
+            <div class="today-workout-meta">${n} exercises · ~${lo}–${hi} min</div>
+          </div></div>
+          <button class="btn-primary" id="continueWorkout">${esc(st.label)}</button>
         </div>`;
     }
 
-    // Weight summary (latest + weekly change)
-    const zEl = $('#todayWeight');
-    if (zEl) {
-      const series = Store.getWeightSeries();
-      const latest = series.length ? series[series.length - 1].kg : null;
-      const trend = Store.weeklyTrend();
-      if (latest == null) {
-        zEl.innerHTML = `<div class="empty">No weigh-ins yet. Add today's weight in the More tab to start your trend.</div>`;
-      } else {
-        const trendStr = trend != null
-          ? `<span class="today-weight-trend ${trend < -0.05 ? 'down' : trend > 0.05 ? 'up' : ''}">${trend < 0 ? '↓' : trend > 0 ? '↑' : '→'} ${Math.abs(trend).toFixed(1)} ${currentUnit} this week</span>`
-          : '<span class="today-weight-trend">keep logging for a weekly trend</span>';
-        zEl.innerHTML = `<div class="today-weight"><span class="today-weight-num">${latest} ${currentUnit}</span>${trendStr}</div>`;
-      }
-    }
+    // Nutrition (today's logs vs targets)
+    const t = Store.foodTotals();
+    const nutritionHTML = `
+      <div class="section-title">🍗 Nutrition</div>
+      <div class="info-card"><div class="today-nutri">
+        <div><span class="today-nutri-num">${t.protein}</span> / ${plan.macros.protein} g <small>protein</small></div>
+        <div><span class="today-nutri-num">${t.kcal}</span> / ${plan.energy.target} <small>kcal</small></div>
+      </div></div>`;
 
-    // Everything-else links
+    // Weight (latest + weekly change)
+    const series = Store.getWeightSeries();
+    const latest = series.length ? series[series.length - 1].kg : null;
+    const trend = Store.weeklyTrend();
+    const weightBody = latest == null
+      ? `<div class="empty">No weigh-ins yet. Add today's weight in the More tab to start your trend.</div>`
+      : `<div class="today-weight"><span class="today-weight-num">${latest} ${currentUnit}</span>${
+          trend != null
+            ? `<span class="today-weight-trend ${trend < -0.05 ? 'down' : trend > 0.05 ? 'up' : ''}">${trend < 0 ? '↓' : trend > 0 ? '↑' : '→'} ${Math.abs(trend).toFixed(1)} ${currentUnit} this week</span>`
+            : '<span class="today-weight-trend">keep logging for a weekly trend</span>'
+        }</div>`;
+    const weightHTML = `<div class="section-title">⚖ Check-in</div><div class="info-card">${weightBody}</div>`;
+
+    // --- Order the three by today's focus (gentle prioritization, no hiding) ---
+    let focusType = null;
+    try {
+      const focus = CoachBrain.getTopFocus(CoachBrain.buildContext({ plan }));
+      focusType = focus ? focus.type : null;
+    } catch { /* ignore */ }
+
+    let ordered = [workoutHTML, nutritionHTML, weightHTML];
+    if (focusType === 'protein_gap') ordered = [nutritionHTML, workoutHTML, weightHTML];
+    else if (focusType === 'weight_trend') ordered = [weightHTML, workoutHTML, nutritionHTML];
+    // lift-related focus (lift_stall / pr) keeps the workout first (default).
+
+    const stack = $('#todayStack');
+    if (stack) stack.innerHTML = ordered.join('');
+
+    // Wire actions
+    const cw = $('#continueWorkout');
+    if (cw) cw.addEventListener('click', () => activateTab('training'));
     planEl.querySelectorAll('.today-link').forEach((b) =>
       b.addEventListener('click', () => activateTab(b.dataset.goto))
     );
@@ -309,6 +327,7 @@
 
   /* ------------------------- Render plan -------------------------- */
   function render(plan) {
+    currentPlan = plan;
     const goalWord =
       plan.phase.direction === 'deficit' ? 'Fat Loss' :
       plan.phase.direction === 'surplus' ? 'Muscle Gain' : 'Recomposition';
@@ -372,6 +391,7 @@
 
   /* ----------------------- Food logger ---------------------------- */
   let currentUnit = 'kg';
+  let currentPlan = null; // last-rendered plan, so tab activation can refresh live
 
   function refreshFoodCard(plan) {
     const card = $('#foodLogCard');
@@ -859,6 +879,13 @@
       b.classList.toggle('active', b.dataset.tab === name)
     );
     planEl.querySelectorAll('.panel').forEach((p) => (p.hidden = p.dataset.panel !== name));
+    // Refresh the opened panel so it reflects the latest logs (Today especially:
+    // adaptive workout button + focus-driven ordering depend on current data).
+    if (!currentPlan) return;
+    if (name === 'today') renderToday(currentPlan);
+    else if (name === 'nutrition') refreshFoodCard(currentPlan);
+    else if (name === 'progress') renderProgress();
+    else if (name === 'more') { refreshWeightCard(); renderCheckin(currentPlan); renderFitbitCard(); }
   }
 
   /* ------------------------- Fitbit wiring ------------------------ */
