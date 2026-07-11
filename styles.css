@@ -237,8 +237,12 @@ ul.clean li span { color: var(--muted); }
 .swap-menu { margin-top: 8px; }
 .swap-menu select { width: 100%; }
 
-.last-hint { color: rgba(255,255,255,0.7); font-size: 0.82rem; margin: 8px 0 6px; }
+.last-hint { color: rgba(255,255,255,0.7); font-size: 0.82rem; margin: 8px 0 4px; }
 .last-hint .muted { color: var(--muted-2); }
+.beat-target { font-size: 0.86rem; color: var(--accent-2); margin: 2px 0 8px; }
+.beat-target b { color: var(--text); font-weight: 700; }
+.beat-target .beat-delta { color: var(--good); font-weight: 700; }
+.set-indicator { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; flex: 0 0 auto; margin-right: 2px; }
 .set-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .set-chip { display: inline-flex; align-items: center; gap: 4px; background: rgba(52,211,153,0.16); color: var(--text); border-radius: 9px; padding: 5px 6px 5px 10px; font-size: 0.82rem; font-weight: 600; border: 1px solid rgba(52,211,153,0.25); }
 .set-chip .set-del { cursor: pointer; border: none; background: none; color: var(--muted); font-size: 1rem; padding: 0 2px; line-height: 1; }
