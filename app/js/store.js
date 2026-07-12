@@ -19,6 +19,9 @@
     food: {},     // { 'YYYY-MM-DD': [{ name, kcal, protein }] }
     workout: {},  // { 'YYYY-MM-DD': { title, sets: { exerciseName: [{ w, r }, ...] } } }
     swaps: {},    // { defaultExerciseName: chosenAlternativeName }
+    // Progress-led programming (Feature 006): where the user is in their program.
+    // Session-based, never calendar-based. Extensible for future mesocycles/deloads.
+    program: {},  // { currentSessionId, completedSessions, completedCycles }
   });
 
   function load() {
@@ -184,6 +187,25 @@
     return hist.length ? hist[0] : null;
   }
 
+  /* --------------------- Program state (Feature 006) ---------------- */
+  // The user's position in their session-based program. Time-independent:
+  // completion advances it; missing days never does.
+
+  function getProgramState() {
+    const p = load().program || {};
+    return {
+      currentSessionId: p.currentSessionId || null,
+      completedSessions: p.completedSessions || 0,
+      completedCycles: p.completedCycles || 0,
+    };
+  }
+
+  function saveProgramState(state) {
+    const db = load();
+    db.program = Object.assign(getProgramState(), state);
+    return save(db).program;
+  }
+
   /* ----------------------- Exercise swaps --------------------------- */
 
   function setSwap(defaultExercise, chosen) {
@@ -218,6 +240,7 @@
     addFood, removeFood, getFood, foodTotals, recentCalories,
     logSet, removeSet, getSets, getWorkout, getExerciseHistory, getLastSession, loggedExercises,
     setSwap, getSwap,
+    getProgramState, saveProgramState,
     exportJSON, importJSON, clearAll,
   };
 

@@ -161,7 +161,7 @@
     const cards = t.days
       .map(
         (d) => `
-        <div class="day-card" data-title="${esc(d.title)}">
+        <div class="day-card" data-title="${esc(d.title)}" data-session-id="${esc(d.id)}">
           <h4>💪 ${esc(d.title)}</h4>
           <div class="exs">
             ${d.work.map(exerciseRow).join('')}
@@ -224,6 +224,38 @@
     return session.work.map((w) => Store.getSwap(w.exercise) || w.exercise);
   }
 
+  /* ------------------- Session Queue (Feature 006) --------------- */
+  // Progress-led, not calendar-led: the current session comes from programState,
+  // and completing it advances the queue. Missing days never advances/rewinds it.
+
+  // The session the user should do next. Initializes to the first session, and
+  // heals if the stored id no longer exists (e.g. the split changed).
+  function currentSession(plan) {
+    const days = plan.training.days;
+    const ps = Store.getProgramState();
+    let day = ps.currentSessionId && days.find((d) => d.id === ps.currentSessionId);
+    if (!day) { day = days[0]; Store.saveProgramState({ currentSessionId: day.id }); }
+    return day;
+  }
+
+  // Advance the queue after completing `sessionId` — only if it's the current one
+  // (so re-opening a finished session never double-advances).
+  function advanceIfCurrent(plan, sessionId) {
+    const ps = Store.getProgramState();
+    if (!sessionId || sessionId !== ps.currentSessionId) return false;
+    const ids = plan.training.days.map((d) => d.id);
+    let i = ids.indexOf(sessionId);
+    if (i < 0) i = 0;
+    let next = i + 1, cycled = false;
+    if (next >= ids.length) { next = 0; cycled = true; }
+    Store.saveProgramState({
+      currentSessionId: ids[next],
+      completedSessions: ps.completedSessions + 1,
+      completedCycles: ps.completedCycles + (cycled ? 1 : 0),
+    });
+    return true;
+  }
+
   // Adaptive workout state from today's logged sets (accounts for swaps).
   function sessionState(session) {
     const today = Store.todayISO();
@@ -235,9 +267,11 @@
   }
 
   /* ------------------- Workout Complete (Feature 005) ------------- */
-  function openWorkoutComplete(names, title) {
+  function openWorkoutComplete(names, title, sessionId) {
     if (typeof CoachBrain === 'undefined' || !currentPlan) return;
     const s = CoachBrain.workoutSummary(CoachBrain.buildContext({ plan: currentPlan }), names);
+    // Completing the current session advances the program queue.
+    const advanced = advanceIfCurrent(currentPlan, sessionId);
 
     const bullets = [`${s.totalSets} working sets completed`];
     s.improvements.forEach((im) => {
@@ -245,6 +279,13 @@
       if (im.e1rmDelta > 0) bullets.push(`Estimated ${im.exercise} 1RM increased by ${im.e1rmDelta} ${currentUnit}`);
     });
     bullets.push(`Protein remaining: ${s.proteinRemaining} g`);
+
+    // If we advanced the queue, name the next session in the program.
+    let nextSessionLine = '';
+    if (advanced) {
+      const nxt = currentSession(currentPlan); // now the advanced-to session
+      nextSessionLine = `<div class="wc-nextsession">▶ Next session: <b>${esc(nxt.label)}</b></div>`;
+    }
 
     const overlay = document.createElement('div');
     overlay.className = 'wc-overlay';
@@ -254,6 +295,7 @@
         <div class="wc-sub">${s.allDone ? 'Nice work. You completed every planned exercise today.' : 'Nice work.'}</div>
         <div class="section-title">Today${title ? ' · ' + esc(title) : ''}</div>
         <ul class="wc-list">${bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
+        ${nextSessionLine}
         <div class="section-title">Coach's Note</div>
         <div class="wc-note">${esc(s.note)}</div>
         <div class="wc-next">Next: <b>${esc(s.nextAction.label)}</b></div>
@@ -304,15 +346,15 @@
 
     // --- Build the three summary cards as strings ---
 
-    // Workout (featured session by date-rotation; adaptive button label)
+    // Workout — the CURRENT session from the program queue (never date-driven).
     let workoutHTML = '';
-    if (plan.training && plan.training.days.length) {
-      const session = plan.training.days[dayOfYear(Store.todayISO()) % plan.training.days.length];
+    const session = (plan.training && plan.training.days.length) ? currentSession(plan) : null;
+    if (session) {
       const n = session.work.length;
       const lo = Math.round(n * 7), hi = Math.round(n * 9);
       const st = sessionState(session);
       workoutHTML = `
-        <div class="section-title">🏋 Today's Workout</div>
+        <div class="section-title">🏋 Next Session</div>
         <div class="info-card">
           <div class="today-workout-head"><div>
             <div class="today-workout-title">${esc(session.title)}</div>
@@ -356,16 +398,31 @@
     else if (focusType === 'weight_trend') ordered = [weightHTML, workoutHTML, nutritionHTML];
     // lift-related focus (lift_stall / pr) keeps the workout first (default).
 
-    const stack = $('#todayStack');
-    if (stack) stack.innerHTML = ordered.join('');
+    // Program Progress — "where am I in my program?" (reassuring, not required).
+    let progressHTML = '';
+    if (plan.training && plan.training.days.length && session) {
+      const days = plan.training.days;
+      const curIdx = days.findIndex((d) => d.id === session.id);
+      progressHTML = `
+        <div class="section-title">Program progress</div>
+        <div class="info-card"><div class="prog-queue">
+          ${days.map((d, i) => {
+            const state = i < curIdx ? 'done' : i === curIdx ? 'current' : 'pending';
+            const mark = state === 'done' ? '✓' : state === 'current' ? '▶' : '·';
+            return `<div class="pq-item pq-${state}"><span class="pq-mark">${mark}</span> ${esc(d.label)}</div>`;
+          }).join('')}
+        </div></div>`;
+    }
 
-    // Wire actions — if the featured session is complete, "View Summary" opens
-    // the Workout Complete screen; otherwise go train.
+    const stack = $('#todayStack');
+    if (stack) stack.innerHTML = ordered.join('') + progressHTML;
+
+    // Wire actions — if the current session is complete, "View Summary" opens the
+    // Workout Complete screen (which advances the queue); otherwise go train.
     const cw = $('#continueWorkout');
-    if (cw && plan.training && plan.training.days.length) {
-      const session = plan.training.days[dayOfYear(Store.todayISO()) % plan.training.days.length];
+    if (cw && session) {
       cw.addEventListener('click', () => {
-        if (sessionState(session).complete) openWorkoutComplete(sessionNames(session), session.title);
+        if (sessionState(session).complete) openWorkoutComplete(sessionNames(session), session.title, session.id);
         else activateTab('training');
       });
     }
@@ -665,7 +722,7 @@
       const dayCard = btn.closest('.day-card');
       btn.addEventListener('click', () => {
         const names = Array.from(dayCard.querySelectorAll('.ex-row')).map((r) => r.dataset.ex);
-        openWorkoutComplete(names, dayCard.dataset.title);
+        openWorkoutComplete(names, dayCard.dataset.title, dayCard.dataset.sessionId);
       });
     });
   }

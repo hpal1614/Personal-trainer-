@@ -207,9 +207,9 @@
         name: 'Full Body (3-day)',
         frequency: 'Each muscle ~3x/week',
         days: [
-          { title: 'Day A — Full Body', work: buildSession(EXERCISES.fullA, equipment) },
-          { title: 'Day B — Full Body', work: buildSession(EXERCISES.fullB, equipment) },
-          { title: 'Day C — Full Body', work: buildSession(EXERCISES.fullC, equipment) },
+          { id: 'full-a', label: 'Full A', title: 'Day A — Full Body', work: buildSession(EXERCISES.fullA, equipment) },
+          { id: 'full-b', label: 'Full B', title: 'Day B — Full Body', work: buildSession(EXERCISES.fullB, equipment) },
+          { id: 'full-c', label: 'Full C', title: 'Day C — Full Body', work: buildSession(EXERCISES.fullC, equipment) },
         ],
       };
     } else if (days === 4) {
@@ -217,10 +217,10 @@
         name: 'Upper / Lower (4-day)',
         frequency: 'Each muscle 2x/week',
         days: [
-          { title: 'Day 1 — Upper', work: buildSession(EXERCISES.upperA, equipment) },
-          { title: 'Day 2 — Lower', work: buildSession(EXERCISES.lowerA, equipment) },
-          { title: 'Day 3 — Upper', work: buildSession(EXERCISES.upperB, equipment) },
-          { title: 'Day 4 — Lower', work: buildSession(EXERCISES.lowerB, equipment) },
+          { id: 'upper-a', label: 'Upper A', title: 'Day 1 — Upper', work: buildSession(EXERCISES.upperA, equipment) },
+          { id: 'lower-a', label: 'Lower A', title: 'Day 2 — Lower', work: buildSession(EXERCISES.lowerA, equipment) },
+          { id: 'upper-b', label: 'Upper B', title: 'Day 3 — Upper', work: buildSession(EXERCISES.upperB, equipment) },
+          { id: 'lower-b', label: 'Lower B', title: 'Day 4 — Lower', work: buildSession(EXERCISES.lowerB, equipment) },
         ],
       };
     } else {
@@ -228,9 +228,9 @@
         name: 'Push / Pull / Legs' + (days >= 6 ? ' x2 (6-day)' : ' (5-day rolling)'),
         frequency: 'Each muscle ~2x/week',
         days: [
-          { title: 'Push (chest/shoulders/triceps)', work: buildSession(EXERCISES.push, equipment) },
-          { title: 'Pull (back/rear delts/biceps)', work: buildSession(EXERCISES.pull, equipment) },
-          { title: 'Legs (quads/hams/glutes/calves)', work: buildSession(EXERCISES.legs, equipment) },
+          { id: 'push', label: 'Push', title: 'Push (chest/shoulders/triceps)', work: buildSession(EXERCISES.push, equipment) },
+          { id: 'pull', label: 'Pull', title: 'Pull (back/rear delts/biceps)', work: buildSession(EXERCISES.pull, equipment) },
+          { id: 'legs', label: 'Legs', title: 'Legs (quads/hams/glutes/calves)', work: buildSession(EXERCISES.legs, equipment) },
         ],
         rolling:
           days === 5

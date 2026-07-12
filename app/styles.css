@@ -333,6 +333,19 @@ ul.clean li span { color: var(--muted); }
 .today-weight-trend { font-size: 0.85rem; font-weight: 700; color: var(--muted); }
 .today-weight-trend.down { color: var(--good); }
 .today-weight-trend.up { color: var(--bad); }
+/* Program progress queue (Feature 006) */
+.prog-queue { display: flex; flex-direction: column; gap: 2px; }
+.pq-item { display: flex; align-items: center; gap: 10px; padding: 9px 4px; font-size: 0.95rem; border-bottom: 1px solid var(--border); }
+.pq-item:last-child { border-bottom: none; }
+.pq-mark { flex: 0 0 20px; text-align: center; font-weight: 800; }
+.pq-done { color: var(--muted); }
+.pq-done .pq-mark { color: var(--good); }
+.pq-current { color: var(--text); font-weight: 800; }
+.pq-current .pq-mark { color: var(--accent-2); }
+.pq-pending { color: var(--muted-2); }
+.wc-nextsession { margin: 12px 0 2px; font-size: 0.95rem; color: var(--accent-2); }
+.wc-nextsession b { color: var(--text); }
+
 .today-links { display: flex; gap: 10px; flex-wrap: wrap; }
 .today-link { flex: 1 1 30%; cursor: pointer; background: var(--glass); border: 1px solid var(--border); color: var(--text); border-radius: 14px; padding: 16px 10px; font-weight: 700; font-size: 0.9rem; backdrop-filter: var(--blur); }
 .today-link:hover { border-color: var(--accent); color: var(--accent-2); }
